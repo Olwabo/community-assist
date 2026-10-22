@@ -9,7 +9,6 @@ import '../../utils/validators.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/primary_button.dart';
 import '../member/member_dashboard.dart';
-import 'admin_register_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -216,6 +215,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
 
                 const SizedBox(height: 16),
+                
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -223,31 +223,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       'Already have an account? ',
                       style: TextStyle(color: AppColors.textSecondary),
                     ),
-                                    const SizedBox(height: 4),
-                Center(
-                  child: TextButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const AdminRegisterScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(
-                      Icons.shield_outlined,
-                      size: 16,
-                      color: AppColors.textHint,
-                    ),
-                    label: const Text(
-                      'Admin sign-up',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textHint,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(),
                       child: const Text(AppStrings.login),

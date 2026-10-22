@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../constants/app_colors.dart';
 import '../../constants/app_statuses.dart';
 import '../../models/notification_model.dart';
@@ -65,7 +64,7 @@ class _ReportUpdateScreenState extends State<ReportUpdateScreen> {
       final statusChanged = _selectedStatus != widget.report.status;
       final responseText = _responseCtrl.text.trim();
 
-      // 1. Update Firestore
+      // Update Firestore
       await _reportService.updateReportStatus(
         reportId: widget.report.id,
         newStatus: _selectedStatus,
@@ -76,7 +75,7 @@ class _ReportUpdateScreenState extends State<ReportUpdateScreen> {
             : null,
       );
 
-      // 2. Create notification for the reporter
+      // Create notification for the reporter
       if (statusChanged || responseText.isNotEmpty) {
         final title = statusChanged
             ? 'Report ${_selectedStatus.label}'

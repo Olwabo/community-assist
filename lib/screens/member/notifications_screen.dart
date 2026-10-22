@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
 import '../../constants/app_colors.dart';
 import '../../models/notification_model.dart';
 import '../../models/user_model.dart';

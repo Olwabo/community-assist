@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../constants/app_colors.dart';
 import '../../constants/app_statuses.dart';
 import '../../models/report_model.dart';
@@ -8,10 +7,10 @@ import '../../services/auth_service.dart';
 import '../../services/report_service.dart';
 import '../../widgets/report_list_tile.dart';
 import '../auth/login_screen.dart';
-import 'report_management_screen.dart';
-import 'report_admin_view_screen.dart';
-import '../member/profile_screen.dart';
 import 'manage_workers_screen.dart';
+import 'report_admin_view_screen.dart';
+import 'report_management_screen.dart';
+import '../member/profile_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -74,19 +73,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Admin'),
-                        actions: [
-                IconButton(
-                icon: const Icon(Icons.handyman_outlined),
-                tooltip: 'Manage Workers',
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const ManageWorkersScreen(),
-                    ),
-                  );
-                },
-              ),
+            title: const Text('Admin Console'),
+            actions: [
               IconButton(
                 icon: const Icon(Icons.person_outline),
                 tooltip: 'Profile',
@@ -98,10 +86,24 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   );
                 },
               ),
-              IconButton(
-                icon: const Icon(Icons.logout),
-                tooltip: 'Logout',
-                onPressed: _logout,
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'logout') _logout();
+                },
+                itemBuilder: (BuildContext context) {
+                  return [
+                    const PopupMenuItem(
+                      value: 'logout',
+                      child: Row(
+                        children: [
+                          Icon(Icons.logout, size: 20, color: AppColors.error),
+                          SizedBox(width: 8),
+                          Text('Logout', style: TextStyle(color: AppColors.error)),
+                        ],
+                      ),
+                    ),
+                  ];
+                },
               ),
             ],
           ),
@@ -115,11 +117,34 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   _buildGreeting(user),
                   const SizedBox(height: 24),
                   _buildOverview(),
-                  const SizedBox(height: 16),
-                  _buildManageWorkersCard(),
                   const SizedBox(height: 28),
+                  
+                  // Quick Actions
+                  const Text(
+                    'Quick Actions',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildQuickActions(),
+                  
                   const SizedBox(height: 28),
+                  
+                  // Status Breakdown
+                  const Text(
+                    'Reports by Status',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   _buildStatusBreakdown(),
+                  
                   const SizedBox(height: 28),
                   _buildRecentReports(),
                 ],
@@ -136,17 +161,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Welcome, ${user.firstName} 👋',
+          'Welcome, ${user.firstName}',
           style: const TextStyle(
-            fontSize: 22,
+            fontSize: 26,
             fontWeight: FontWeight.bold,
             color: AppColors.textPrimary,
+            letterSpacing: -0.5,
           ),
         ),
         const SizedBox(height: 4),
         const Text(
-          'Review and manage community reports.',
-          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          'KuGompo Metro Management Console',
+          style: TextStyle(
+            fontSize: 14, 
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ],
     );
@@ -157,139 +187,162 @@ class _AdminDashboardState extends State<AdminDashboard> {
       stream: _reportService.streamStatusCounts(),
       builder: (context, snapshot) {
         final counts = snapshot.data ?? {};
-        final total =
-            counts.values.fold<int>(0, (sum, v) => sum + v);
+        final total = counts.values.fold<int>(0, (sum, v) => sum + v);
+        
         final active = (counts[ReportStatus.submitted] ?? 0) +
-            (counts[ReportStatus.underReview] ?? 0) +
-            (counts[ReportStatus.inProgress] ?? 0);
-        final resolved = (counts[ReportStatus.verified] ?? 0) +
+            (counts[ReportStatus.assigned] ?? 0) +
+            (counts[ReportStatus.inProgress] ?? 0) +
+            (counts[ReportStatus.repaired] ?? 0) +
+            (counts[ReportStatus.disputed] ?? 0);
+
+        final closed = (counts[ReportStatus.verified] ?? 0) +
             (counts[ReportStatus.rejected] ?? 0);
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        return Row(
           children: [
-            const Text(
-              'Overview',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
+            Expanded(
+              child: _statCard('Total', total, AppColors.primary),
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _statCard('Total', total, AppColors.primary),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _statCard('Active', active, AppColors.warning),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _statCard('Closed', resolved, AppColors.success),
-                ),
-              ],
+            const SizedBox(width: 10),
+            Expanded(
+              child: _statCard('Active', active, AppColors.warning),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _statCard('Closed', closed, AppColors.success),
             ),
           ],
         );
       },
     );
   }
-    Widget _buildManageWorkersCard() {
-    return Material(
-      color: const Color(0xFF14B8A6),
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const ManageWorkersScreen(),
-            ),
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.handyman_outlined,
-                  color: Colors.white,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 14),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Manage Workers',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Add or manage maintenance workers',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right,
-                color: Colors.white,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+
   Widget _statCard(String label, int value, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.15), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
           Text(
             '$value',
             style: TextStyle(
-              fontSize: 24,
+              fontSize: 26,
               fontWeight: FontWeight.bold,
               color: color,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(
             label,
             style: const TextStyle(
               fontSize: 12,
               color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildQuickActions() {
+    return Row(
+      children: [
+        Expanded(
+          child: Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ReportManagementScreen(),
+                  ),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.folder_open, color: AppColors.primary),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'All Reports',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ManageWorkersScreen(),
+                  ),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF14B8A6).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.engineering, color: Color(0xFF14B8A6)),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Workers',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -299,39 +352,45 @@ class _AdminDashboardState extends State<AdminDashboard> {
       builder: (context, snapshot) {
         final counts = snapshot.data ?? {};
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Reports by Status',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.divider),
-              ),
-              child: Column(
-                children: ReportStatus.values.map((status) {
-                  final count = counts[status] ?? 0;
-                  final isLast = status == ReportStatus.values.last;
-                  return _statusRow(status, count, isLast);
-                }).toList(),
-              ),
-            ),
-          ],
+        final displayStatuses = [
+          ReportStatus.submitted,
+          ReportStatus.assigned,
+          ReportStatus.inProgress,
+          ReportStatus.repaired,
+          ReportStatus.disputed,
+          ReportStatus.rejected,
+        ];
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Column(
+            children: displayStatuses.asMap().entries.map((entry) {
+              final index = entry.key;
+              final status = entry.value;
+              final isLast = index == displayStatuses.length - 1;
+
+              int count = counts[status] ?? 0;
+              if (status == ReportStatus.repaired) {
+                count += counts[ReportStatus.verified] ?? 0;
+              }
+
+              return _statusRow(status, count, isLast);
+            }).toList(),
+          ),
         );
       },
     );
   }
 
   Widget _statusRow(ReportStatus status, int count, bool isLast) {
+    final displayLabel = status == ReportStatus.repaired
+        ? 'Repaired / Verified'
+        : status.label;
+
     return InkWell(
       onTap: () {
         Navigator.of(context).push(
@@ -354,18 +413,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
         child: Row(
           children: [
             Container(
-              width: 34,
-              height: 34,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 color: status.color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(status.icon, size: 18, color: status.color),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Text(
-                status.label,
+                displayLabel,
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -375,7 +434,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             Container(
               padding: const EdgeInsets.symmetric(
-                horizontal: 10,
+                horizontal: 12,
                 vertical: 4,
               ),
               decoration: BoxDecoration(
@@ -427,11 +486,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ),
                 );
               },
-              child: const Text('View all'),
+              child: const Text('View All'),
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 8),
         StreamBuilder<List<ReportModel>>(
           stream: _reportService.streamAllReports(),
           builder: (context, snapshot) {
@@ -450,7 +509,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppColors.divider),
                 ),
                 child: const Center(

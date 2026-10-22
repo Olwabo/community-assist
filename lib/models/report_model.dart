@@ -151,7 +151,7 @@ class ReportModel {
   bool get hasRepairEvidence =>
       repairPhotoBase64 != null && repairPhotoBase64!.isNotEmpty;
 
-  // ---------- Firestore ----------
+  //Firestore
 
   factory ReportModel.fromMap(String id, Map<String, dynamic> map) {
     return ReportModel(

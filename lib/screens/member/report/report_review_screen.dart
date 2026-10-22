@@ -17,7 +17,6 @@ import '../../../widgets/primary_button.dart';
 import '../../../widgets/step_progress.dart';
 import 'report_confirmation_screen.dart';
 
-
 class ReportReviewScreen extends StatefulWidget {
   final ReportDraft draft;
 
@@ -34,6 +33,7 @@ class _ReportReviewScreenState extends State<ReportReviewScreen> {
 
   bool _isSubmitting = false;
   Uint8List? _photoBytes;
+  bool _isCheckingDuplicate = false;
 
   @override
   void initState() {
@@ -54,30 +54,78 @@ class _ReportReviewScreenState extends State<ReportReviewScreen> {
   Future<void> _submit() async {
     final draft = widget.draft;
 
-    if (draft.category == null ||
-        draft.description.isEmpty ||
-        draft.location == null) {
+    if (draft.category == null || draft.description.isEmpty || draft.location == null) {
       AppSnackbar.error(context, 'Incomplete report. Please go back.');
       return;
     }
 
+    // 1. Check for duplicates
+    setState(() {
+      _isSubmitting = true;
+      _isCheckingDuplicate = true;
+    });
+
+    final duplicate = await _reportService.findDuplicateReport(
+      category: draft.category!,
+      location: draft.location!,
+    );
+
+    // Ensure widget is still mounted after async call
+    if (!mounted) return; 
+
+    setState(() => _isCheckingDuplicate = false);
+
+    if (duplicate != null) {
+      setState(() => _isSubmitting = false);
+      
+      // Show warning dialog
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Row(
+            children: const [
+              Icon(Icons.warning_amber_rounded, color: AppColors.warning),
+              SizedBox(width: 8),
+              Text('Possible Duplicate'),
+            ],
+          ),
+          content: Text(
+            'There is already an active report for a ${duplicate.category.label} '
+            'within 100 meters of your location (${duplicate.reportNumber}).\n\n'
+            'Are you sure you want to submit this?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Submit Anyway'),
+            ),
+          ],
+        ),
+      );
+
+      if (proceed != true) return;
+    }
+
+    // 2. Proceed with actual submission
+    setState(() => _isSubmitting = true);
+
     final fbUser = FirebaseAuth.instance.currentUser;
     if (fbUser == null) {
+      if (!mounted) return;
       AppSnackbar.error(context, 'You must be logged in');
+      setState(() => _isSubmitting = false);
       return;
     }
 
-    setState(() => _isSubmitting = true);
-
     try {
       final profile = await _auth.getCurrentUserModel();
-      if (profile == null) {
-        throw Exception('User profile not found');
-      }
+      if (profile == null) throw Exception('User profile not found');
 
-      // Encode photo as Base64 (if provided)
       String? photoBase64;
-
       if (draft.photoLocalPath != null && !kIsWeb) {
         photoBase64 = await _storageService.encodePhotoAsBase64(
           File(draft.photoLocalPath!),
@@ -88,15 +136,11 @@ class _ReportReviewScreenState extends State<ReportReviewScreen> {
         if (photoBase64 == null) {
           if (!mounted) return;
           setState(() => _isSubmitting = false);
-          AppSnackbar.error(
-            context,
-            'Photo is too large. Please retake or choose a smaller image.',
-          );
+          AppSnackbar.error(context, 'Photo is too large.');
           return;
         }
       }
 
-      // Create the report
       final created = await _reportService.submitReport(
         userId: profile.uid,
         userName: profile.fullName,
@@ -108,7 +152,6 @@ class _ReportReviewScreenState extends State<ReportReviewScreen> {
       );
 
       if (!mounted) return;
-
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => ReportConfirmationScreen(report: created),
@@ -243,8 +286,8 @@ class _ReportReviewScreenState extends State<ReportReviewScreen> {
               child: Column(
                 children: [
                   PrimaryButton(
-                    label: 'Submit Report',
-                    icon: Icons.send,
+                    label: _isCheckingDuplicate ? 'Checking...' : 'Submit Report',
+                    icon: _isCheckingDuplicate ? Icons.search : Icons.send,
                     isLoading: _isSubmitting,
                     onPressed: _submit,
                   ),

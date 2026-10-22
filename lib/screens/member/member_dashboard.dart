@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../constants/app_colors.dart';
 import '../../constants/app_strings.dart';
 import '../../models/report_model.dart';
@@ -7,15 +6,17 @@ import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
 import '../../services/report_service.dart';
 import '../../widgets/dashboard_tile.dart';
+import '../../widgets/notification_bell.dart';
 import '../../widgets/report_list_tile.dart';
 import '../auth/login_screen.dart';
-import '../../models/report_draft.dart';
-import 'report/report_category_screen.dart';
 import 'my_reports_screen.dart';
-import 'report/report_details_screen.dart';
 import 'notifications_screen.dart';
-import '../../services/notification_service.dart';
 import 'profile_screen.dart';
+import 'report/report_category_screen.dart';
+import 'report/report_details_screen.dart';
+import 'community_feed_screen.dart';
+import '../../models/report_draft.dart';
+import '../../services/notification_service.dart';
 
 class MemberDashboard extends StatefulWidget {
   const MemberDashboard({super.key});
@@ -58,7 +59,6 @@ class _MemberDashboardState extends State<MemberDashboard> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<UserModel?>(
@@ -81,10 +81,54 @@ class _MemberDashboardState extends State<MemberDashboard> {
           appBar: AppBar(
             title: const Text(AppStrings.appName),
             actions: [
+              // Real-time Notification Bell
+              StreamBuilder<int>(
+                stream: NotificationService().streamUnreadCount(user.uid),
+                builder: (context, snapshot) {
+                  final unread = snapshot.data ?? 0;
+                  return NotificationBell(
+                    unreadCount: unread,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationsScreen(),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+              // Profile Icon
               IconButton(
-                icon: const Icon(Icons.logout),
-                tooltip: 'Logout',
-                onPressed: _logout,
+                icon: const Icon(Icons.person_outline),
+                tooltip: 'Profile',
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ProfileScreen(),
+                    ),
+                  );
+                },
+              ),
+              // Logout (Hidden in a menu to keep the AppBar clean)
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'logout') _logout();
+                },
+                itemBuilder: (BuildContext context) {
+                  return [
+                    const PopupMenuItem(
+                      value: 'logout',
+                      child: Row(
+                        children: [
+                          Icon(Icons.logout, size: 20, color: AppColors.error),
+                          SizedBox(width: 8),
+                          Text('Logout', style: TextStyle(color: AppColors.error)),
+                        ],
+                      ),
+                    ),
+                  ];
+                },
               ),
             ],
           ),
@@ -98,9 +142,60 @@ class _MemberDashboardState extends State<MemberDashboard> {
                   _buildGreeting(user),
                   const SizedBox(height: 24),
                   _buildStats(user.uid),
-                  const SizedBox(height: 24),
-                  _buildTiles(user.uid),
                   const SizedBox(height: 28),
+                  
+                  // Section Header
+                  const Text(
+                    'Actions',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  _buildPrimaryAction(user.uid),
+                  const SizedBox(height: 12),
+                  
+                  // Two smaller tiles side-by-side
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DashboardTile(
+                          label: 'My Reports',
+                          subtitle: 'Track your issues',
+                          icon: Icons.fact_check_outlined,
+                          color: AppColors.accent,
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const MyReportsScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DashboardTile(
+                          label: 'Community',
+                          subtitle: 'See others issues',
+                          icon: Icons.map_outlined,
+                          color: Colors.teal,
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const CommunityFeedScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 32),
                   _buildRecentReports(user.uid),
                 ],
               ),
@@ -116,16 +211,17 @@ class _MemberDashboardState extends State<MemberDashboard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Welcome, ${user.firstName} 👋',
+          'Hello, ${user.firstName}', // Removed the emoji
           style: const TextStyle(
-            fontSize: 24,
+            fontSize: 26,
             fontWeight: FontWeight.bold,
             color: AppColors.textPrimary,
+            letterSpacing: -0.5,
           ),
         ),
         const SizedBox(height: 4),
         const Text(
-          'Report community issues. Track their progress.',
+          'Help keep KuGompo Metro running smoothly.',
           style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),
       ],
@@ -148,7 +244,7 @@ class _MemberDashboardState extends State<MemberDashboard> {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: _statCard('Active', active, AppColors.statusInProgress),
+              child: _statCard('Active', active, AppColors.warning),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -165,26 +261,33 @@ class _MemberDashboardState extends State<MemberDashboard> {
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.15), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
           Text(
             '$value',
             style: TextStyle(
-              fontSize: 24,
+              fontSize: 26,
               fontWeight: FontWeight.bold,
               color: color,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(
             label,
             style: const TextStyle(
               fontSize: 12,
               color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -192,77 +295,71 @@ class _MemberDashboardState extends State<MemberDashboard> {
     );
   }
 
-  Widget _buildTiles(String uid) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: 1.05,
-      children: [
-        DashboardTile(
-          label: 'Report an Issue',
-          subtitle: 'Submit a new problem',
-          icon: Icons.add_alert,
-          color: AppColors.primary,
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => ReportCategoryScreen(draft: ReportDraft()),
+  Widget _buildPrimaryAction(String uid) {
+    return Material(
+      color: AppColors.primary,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ReportCategoryScreen(draft: ReportDraft()),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.add_alert_outlined,
+                  color: Colors.white,
+                  size: 28,
+                ),
               ),
-            );
-          },
-        ),
-        DashboardTile(
-          label: 'My Reports',
-          subtitle: 'View & track your reports',
-          icon: Icons.list_alt,
-          color: AppColors.accent,
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const MyReportsScreen(),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Report an Issue',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Spot a pothole or broken light? Let us know.',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            );
-          },
-        ),
-        StreamBuilder<int>(
-          stream: NotificationService().streamUnreadCount(uid),
-          builder: (context, snapshot) {
-            final unread = snapshot.data ?? 0;
-            return DashboardTile(
-              label: 'Notifications',
-              subtitle: unread > 0
-                  ? '$unread unread update${unread == 1 ? '' : 's'}'
-                  : 'Updates on your reports',
-              icon: Icons.notifications_none,
-              color: AppColors.statusInProgress,
-              badgeCount: unread > 0 ? unread : null,
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const NotificationsScreen(),
-                  ),
-                );
-              },
-            );
-          },
-        ),
-          DashboardTile(
-          label: 'Profile',
-          subtitle: 'Manage your account',
-          icon: Icons.person_outline,
-          color: AppColors.statusResolved,
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const ProfileScreen(),
+              const Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.white,
+                size: 18,
               ),
-            );
-          },
+            ],
+          ),
         ),
-      ],
+      ),
     );
   }
 
@@ -271,7 +368,7 @@ class _MemberDashboardState extends State<MemberDashboard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Recent Reports',
+          'Recent Activity',
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w700,
@@ -301,27 +398,19 @@ class _MemberDashboardState extends State<MemberDashboard> {
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: AppColors.divider),
                 ),
-                child: Column(
+                child: const Column(
                   children: [
                     Icon(
-                      Icons.inbox_outlined,
+                      Icons.history,
                       size: 40,
-                      color: AppColors.textHint.withValues(alpha: 0.6),
+                      color: AppColors.textHint,
                     ),
-                    const SizedBox(height: 12),
-                    const Text(
+                    SizedBox(height: 12),
+                    Text(
                       "You haven't submitted any reports yet",
                       style: TextStyle(
                         fontSize: 14,
                         color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Tap "Report an Issue" to get started.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textHint,
                       ),
                     ),
                   ],
@@ -334,7 +423,7 @@ class _MemberDashboardState extends State<MemberDashboard> {
                   .map(
                     (r) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                                            child: ReportListTile(
+                      child: ReportListTile(
                         report: r,
                         onTap: () {
                           Navigator.of(context).push(

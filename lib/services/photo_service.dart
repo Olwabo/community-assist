@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:typed_data';
-
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
@@ -21,7 +20,7 @@ class PhotoService {
     }
   }
 
-  /// Pick from camera
+  // Pick from camera
   Future<XFile?> pickFromCamera() async {
     try {
       return await _picker.pickImage(
@@ -34,19 +33,19 @@ class PhotoService {
     }
   }
 
-  /// Read bytes from an XFile
+  // Read bytes from an XFile
   Future<Uint8List> readBytes(XFile file) async {
     return await file.readAsBytes();
   }
 
-  /// Read as File (not available on web)
+  // Read as File (not available on web)
   File? fileFromXFile(XFile file) {
     if (kIsWeb) return null;
     return File(file.path);
   }
 
-  /// Compress an image's bytes to keep it under a target size (KB).
-  /// Returns the compressed bytes.
+  // Compress an image's bytes to keep it under a target size (KB).
+  // Returns the compressed bytes.
   Future<Uint8List> compressBytes(
     Uint8List input, {
     int maxDimension = 1280,

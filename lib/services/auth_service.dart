@@ -43,7 +43,7 @@ class AuthService {
     required String phone,
     required String password,
   }) async {
-    // 1. Create Auth account
+    // Create Auth account
     final cred = await _auth.createUserWithEmailAndPassword(
       email: email.trim(),
       password: password,
@@ -51,10 +51,10 @@ class AuthService {
 
     final uid = cred.user!.uid;
 
-    // 2. Send email verification (optional but nice)
+    // Send email verification
     await cred.user!.sendEmailVerification();
 
-    // 3. Create Firestore profile
+    // Create Firestore profile
     final now = DateTime.now();
     final user = UserModel(
       uid: uid,
@@ -74,7 +74,6 @@ class AuthService {
   }
 
   /// Login with email + password.
-  /// Returns the UserModel from Firestore.
   Future<UserModel> login({
     required String email,
     required String password,
@@ -88,7 +87,6 @@ class AuthService {
     final doc = await _db.collection('users').doc(uid).get();
 
     if (!doc.exists || doc.data() == null) {
-      // Auth exists but no profile — shouldn't happen
       await _auth.signOut();
       throw Exception('User profile not found. Please contact support.');
     }
@@ -104,7 +102,7 @@ class AuthService {
     await _auth.sendPasswordResetEmail(email: email.trim());
   }
 
-  /// Register an FCM token for the current user (called after login).
+  // Register an FCM token for the current user (called after login).
   Future<void> addFcmToken(String token) async {
     final uid = currentUid;
     if (uid == null) return;
@@ -113,7 +111,7 @@ class AuthService {
     });
   }
 
-  /// Remove an FCM token (called on logout).
+  // Remove an FCM token (called on logout).
   Future<void> removeFcmToken(String token) async {
     final uid = currentUid;
     if (uid == null) return;
@@ -121,8 +119,7 @@ class AuthService {
       'fcmTokens': FieldValue.arrayRemove([token]),
     });
   }
-    /// Register an admin account. Verifies the admin code first.
-  /// Throws an exception if the code is wrong.
+    // Register an admin account. Verifies the admin code first.
   Future<UserModel> registerAdmin({
     required String firstName,
     required String lastName,
@@ -131,12 +128,12 @@ class AuthService {
     required String password,
     required String adminCode,
   }) async {
-    // 1. Verify admin code
+    // Verify admin code
     if (adminCode.trim() != kAdminCode) {
       throw Exception('Invalid admin code');
     }
 
-    // 2. Create Auth account
+    // Create Auth account
     final cred = await _auth.createUserWithEmailAndPassword(
       email: email.trim(),
       password: password,
@@ -145,7 +142,7 @@ class AuthService {
     final uid = cred.user!.uid;
     await cred.user!.sendEmailVerification();
 
-    // 3. Create Firestore profile with role: admin
+    // Create Firestore profile with role: admin
     final now = DateTime.now();
     final user = UserModel(
       uid: uid,
@@ -163,7 +160,7 @@ class AuthService {
     await _db.collection('users').doc(uid).set(user.toMap());
     return user;
   }
-    /// Update the current user's profile fields in Firestore.
+    // Update the current user's profile fields in Firestore.
   Future<void> updateProfile({
     required String firstName,
     required String lastName,
@@ -180,8 +177,8 @@ class AuthService {
     });
   }
 
-  /// Change the current user's password.
-  /// Requires the current password for security.
+  // Change the current user's password.
+  // Requires the current password for security.
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
@@ -201,15 +198,7 @@ class AuthService {
     // Then update to the new password
     await user.updatePassword(newPassword);
   }
-    // ============================================================
-  // WORKER MANAGEMENT (admin-only actions)
-  // ============================================================
 
-  /// Creates a worker account WITHOUT logging out the current admin.
-  ///
-  /// Uses a secondary Firebase app instance so the primary session
-  /// (the admin's) stays authenticated. The secondary instance is
-  /// disposed immediately after the worker is created.
   Future<UserModel> createWorkerAccount({
     required String firstName,
     required String lastName,
@@ -217,13 +206,13 @@ class AuthService {
     required String phone,
     required String temporaryPassword,
   }) async {
-    // 1. Ensure admin is actually an admin (defence in depth)
+    // Ensure admin is actually an admin (defence in depth)
     final adminProfile = await getCurrentUserModel();
     if (adminProfile == null || !adminProfile.isAdmin) {
       throw Exception('Only admins can create worker accounts');
     }
 
-    // 2. Initialize a secondary Firebase app instance (named to avoid clashes)
+    // Initialize a secondary Firebase app instance (named to avoid clashes)
     const secondaryAppName = 'worker-creation-instance';
     FirebaseApp? secondaryApp;
     try {
@@ -237,7 +226,7 @@ class AuthService {
     }
 
     try {
-      // 3. Use the secondary app's auth to create the account
+      // Use the secondary app's auth to create the account
       final secondaryAuth = FirebaseAuth.instanceFor(app: secondaryApp);
 
       final cred = await secondaryAuth.createUserWithEmailAndPassword(
@@ -247,10 +236,10 @@ class AuthService {
 
       final workerUid = cred.user!.uid;
 
-      // 4. Sign out of the secondary instance (does NOT affect primary)
+      // Sign out of the secondary instance (does NOT affect primary)
       await secondaryAuth.signOut();
 
-      // 5. Write the worker's Firestore profile using the PRIMARY Firestore
+      // Write the worker's Firestore profile using the PRIMARY Firestore
       //    (the admin is still signed in there, so rules permit it)
       final now = DateTime.now();
       final worker = UserModel(
@@ -276,12 +265,9 @@ class AuthService {
       }
       throw Exception('Failed to create worker account: $e');
     }
-    // Note: We deliberately do NOT delete the secondary app — reusing it
-    // is faster than reinitializing on every worker creation.
+
   }
 
-  /// Stream all workers, sorted by first name.
-  /// Only admins should call this — Firestore rules will enforce it.
   Stream<List<UserModel>> streamWorkers() {
     return _db
         .collection('users')
@@ -298,7 +284,6 @@ class AuthService {
     });
   }
 
-  /// Deactivate a worker account (soft delete — keeps report history intact).
   Future<void> deactivateWorker(String workerId) async {
     final adminProfile = await getCurrentUserModel();
     if (adminProfile == null || !adminProfile.isAdmin) {
@@ -311,7 +296,6 @@ class AuthService {
     });
   }
 
-  /// Reactivate a worker account.
   Future<void> reactivateWorker(String workerId) async {
     final adminProfile = await getCurrentUserModel();
     if (adminProfile == null || !adminProfile.isAdmin) {
@@ -323,8 +307,8 @@ class AuthService {
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
-    /// Send a password reset email to any user (worker, member).
-  /// The user clicks the emailed link and sets a new password.
+    // Send a password reset email to any user (worker, member).
+  // The user clicks the emailed link and sets a new password.
   Future<void> sendPasswordResetTo(String email) async {
     await _auth.sendPasswordResetEmail(email: email.trim());
   }

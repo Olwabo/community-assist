@@ -1,5 +1,6 @@
 import 'package:geolocator/geolocator.dart';
-
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:async';
 import '../models/report_model.dart';
 
 class LocationResult {
@@ -11,40 +12,64 @@ class LocationResult {
 }
 
 class LocationService {
-  /// Requests permission and returns a ReportLocation, or an error.
   Future<LocationResult> getCurrentLocation() async {
+    // Web Mock (Instant)
+    if (kIsWeb) {
+      await Future.delayed(const Duration(seconds: 1));
+      return const LocationResult(
+        location: ReportLocation(
+          latitude: -33.0153,
+          longitude: 27.9116,
+          accuracy: 10.0,
+        ),
+      );
+    }
+
+    // Mobile Logic wrapped in a 15-second absolute timer
     try {
-      // 1. Is location service on?
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        return const LocationResult(
-          error: 'Location services are disabled. Please enable GPS.',
+      return await _fetchMobileLocation().timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => const LocationResult(
+          error: 'GPS timed out. Make sure phone Location is ON and you are near a window.',
+        ),
+      );
+    } on TimeoutException {
+       return const LocationResult(
+          error: 'GPS timed out. Make sure phone Location is ON and you are near a window.',
         );
-      }
+    } catch (e) {
+      return LocationResult(error: 'Location error: $e');
+    }
+  }
 
-      // 2. Permission status
-      LocationPermission permission = await Geolocator.checkPermission();
+  Future<LocationResult> _fetchMobileLocation() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return const LocationResult(
+        error: 'Location services are disabled on this phone.',
+      );
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          return const LocationResult(
-            error: 'Location permission denied.',
-          );
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
         return const LocationResult(
-          error:
-              'Location permission permanently denied. Enable it from app settings.',
+          error: 'Location permission denied. Check phone settings.',
         );
       }
+    }
 
-      // 3. Get current position
+    if (permission == LocationPermission.deniedForever) {
+      return const LocationResult(
+        error: 'Location permission permanently denied.',
+      );
+    }
+
+    try {
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 15),
+          accuracy: LocationAccuracy.medium,
         ),
       );
 
@@ -56,25 +81,18 @@ class LocationService {
         ),
       );
     } catch (e) {
-      // Fallback: last known position if current fails (e.g. timeout)
-      try {
-        final last = await Geolocator.getLastKnownPosition();
-        if (last != null) {
-          return LocationResult(
-            location: ReportLocation(
-              latitude: last.latitude,
-              longitude: last.longitude,
-              accuracy: last.accuracy,
-            ),
-          );
-        }
-      } catch (_) {}
-      return LocationResult(error: 'Could not get location: $e');
+      // Fallback to last known
+      final last = await Geolocator.getLastKnownPosition();
+      if (last != null) {
+        return LocationResult(
+          location: ReportLocation(
+            latitude: last.latitude,
+            longitude: last.longitude,
+            accuracy: last.accuracy,
+          ),
+        );
+      }
+      return LocationResult(error: 'Could not get GPS fix. Error: $e');
     }
-  }
-
-  /// Opens the OS-level app settings for the user to grant permissions manually.
-  Future<void> openAppSettings() async {
-    await Geolocator.openAppSettings();
   }
 }

@@ -1,29 +1,42 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
-
 import '../../constants/app_categories.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/app_statuses.dart';
+import '../../models/notification_model.dart';
 import '../../models/report_model.dart';
+import '../../services/auth_service.dart';
+import '../../services/notification_service.dart';
 import '../../services/report_service.dart';
+import '../../utils/snackbar.dart';
 import '../../widgets/location_map.dart';
 import '../../widgets/status_badge.dart';
 import 'report_update_screen.dart';
+import 'select_worker_screen.dart';
 
-class ReportAdminViewScreen extends StatelessWidget {
+class ReportAdminViewScreen extends StatefulWidget {
   final String reportId;
 
   const ReportAdminViewScreen({super.key, required this.reportId});
 
   @override
-  Widget build(BuildContext context) {
-    final service = ReportService();
+  State<ReportAdminViewScreen> createState() => _ReportAdminViewScreenState();
+}
 
+class _ReportAdminViewScreenState extends State<ReportAdminViewScreen> {
+  final _reportService = ReportService();
+  final _auth = AuthService();
+  final _notificationService = NotificationService();
+
+  bool _isProcessing = false;
+
+  @override
+  Widget build(BuildContext context) {
     return StreamBuilder<ReportModel?>(
-      stream: service.streamReport(reportId),
+      stream: _reportService.streamReport(widget.reportId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -69,6 +82,13 @@ class ReportAdminViewScreen extends StatelessWidget {
                 _buildInfoSection(report),
                 const SizedBox(height: 16),
                 _buildLocationSection(report),
+
+                // Repair evidence — only if the worker has submitted one
+                if (report.hasRepairEvidence) ...[
+                  const SizedBox(height: 16),
+                  _buildRepairEvidence(report),
+                ],
+
                 const SizedBox(height: 16),
                 _buildReporterSection(report),
                 const SizedBox(height: 16),
@@ -86,6 +106,10 @@ class ReportAdminViewScreen extends StatelessWidget {
       },
     );
   }
+
+  // ============================================================
+  // PHOTO
+  // ============================================================
 
   Widget _buildPhoto(ReportModel report) {
     Uint8List? bytes;
@@ -133,31 +157,133 @@ class ReportAdminViewScreen extends StatelessWidget {
     );
   }
 
+  // ============================================================
+  // STATUS HEADER (with Update + Assign)
+  // ============================================================
+
   Widget _buildStatusHeader(BuildContext context, ReportModel report) {
-    return Row(
+    final canAssign = report.status == ReportStatus.submitted ||
+        report.status == ReportStatus.underReview ||
+        report.status == ReportStatus.assigned ||
+        report.status == ReportStatus.disputed;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        StatusBadge(status: report.status),
-        const Spacer(),
-        ElevatedButton.icon(
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => ReportUpdateScreen(report: report),
+        Row(
+          children: [
+            StatusBadge(status: report.status),
+            const Spacer(),
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ReportUpdateScreen(report: report),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.edit, size: 16),
+              label: const Text('Update'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                minimumSize: const Size(0, 0),
               ),
-            );
-          },
-          icon: const Icon(Icons.edit, size: 18),
-          label: const Text('Update'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            minimumSize: const Size(0, 0),
-          ),
+            ),
+          ],
         ),
+        if (canAssign) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(
+                    builder: (_) => SelectWorkerScreen(report: report),
+                  ),
+                );
+                // Screen auto-refreshes via stream
+              },
+              icon: const Icon(Icons.assignment_ind_outlined),
+              label: Text(
+                report.assignedToName == null
+                    ? 'Assign to Worker'
+                    : 'Reassign Worker',
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF14B8A6),
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ),
+        ],
+        if (report.assignedToName != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF14B8A6).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: const Color(0xFF14B8A6).withValues(alpha: 0.25),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.handyman_outlined,
+                  size: 18,
+                  color: Color(0xFF14B8A6),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'ASSIGNED TO',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0F766E),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        report.assignedToName!,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (report.assignedAt != null)
+                  Text(
+                    DateFormat('d MMM').format(report.assignedAt!),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textHint,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
+
+  // ============================================================
+  // INFO + LOCATION + REPORTER
+  // ============================================================
 
   Widget _buildInfoSection(ReportModel report) {
     return _card(
@@ -247,6 +373,441 @@ class ReportAdminViewScreen extends StatelessWidget {
     );
   }
 
+  // ============================================================
+  // REPAIR EVIDENCE (admin can verify/dispute)
+  // ============================================================
+
+  Widget _buildRepairEvidence(ReportModel report) {
+    Uint8List? repairBytes;
+    if (report.repairPhotoBase64 != null &&
+        report.repairPhotoBase64!.isNotEmpty) {
+      try {
+        repairBytes = base64Decode(report.repairPhotoBase64!);
+      } catch (_) {}
+    }
+
+    // Distance
+    String? distanceText;
+    if (report.repairLocation != null) {
+      try {
+        final distance = Geolocator.distanceBetween(
+          report.location.latitude,
+          report.location.longitude,
+          report.repairLocation!.latitude,
+          report.repairLocation!.longitude,
+        );
+        distanceText = distance < 1000
+            ? '${distance.toStringAsFixed(0)} m from original'
+            : '${(distance / 1000).toStringAsFixed(1)} km from original';
+      } catch (_) {}
+    }
+
+    final canVerify = report.status == ReportStatus.repaired;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF14B8A6).withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: const Color(0xFF14B8A6).withValues(alpha: 0.3),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              const Icon(
+                Icons.handyman_outlined,
+                size: 20,
+                color: Color(0xFF14B8A6),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'REPAIR EVIDENCE',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F766E),
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Repair photo
+          if (repairBytes != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.memory(
+                repairBytes,
+                width: double.infinity,
+                height: 200,
+                fit: BoxFit.cover,
+              ),
+            ),
+          const SizedBox(height: 12),
+
+          // Notes
+          if (report.repairNotes != null &&
+              report.repairNotes!.isNotEmpty) ...[
+            const Text(
+              'REPAIR NOTES',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textHint,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              report.repairNotes!,
+              style: const TextStyle(
+                fontSize: 13,
+                height: 1.5,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+
+          // Distance
+          if (distanceText != null) ...[
+            Row(
+              children: [
+                const Icon(
+                  Icons.location_on_outlined,
+                  size: 14,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  distanceText,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+          ],
+
+          // Repaired at
+          if (report.repairedAt != null)
+            Text(
+              'Repaired ${_formatDate(report.repairedAt!)}',
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textHint,
+              ),
+            ),
+
+          // Admin verify/dispute actions
+          if (canVerify) ...[
+            const SizedBox(height: 16),
+            const Divider(color: AppColors.divider),
+            const SizedBox(height: 10),
+            const Text(
+              'Verify this repair?',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isProcessing
+                        ? null
+                        : () => _disputeRepair(report),
+                    icon: const Icon(
+                      Icons.report_problem_outlined,
+                      size: 16,
+                    ),
+                    label: const Text('Reject'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: const BorderSide(color: AppColors.error),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isProcessing
+                        ? null
+                        : () => _verifyRepair(report),
+                    icon: const Icon(
+                      Icons.check_circle_outline,
+                      size: 16,
+                    ),
+                    label: const Text('Verify'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.success,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          // Already verified feedback
+          if (report.status == ReportStatus.verified) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.success.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                children: [
+                  Icon(
+                    Icons.verified,
+                    size: 16,
+                    color: AppColors.success,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'This repair has been verified.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.success,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          // Disputed feedback
+          if (report.status == ReportStatus.disputed) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(
+                        Icons.report_problem_outlined,
+                        size: 16,
+                        color: AppColors.error,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Reporter disputed this repair.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (report.disputeReason != null &&
+                      report.disputeReason!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '"${report.disputeReason}"',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.error,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // VERIFY / DISPUTE (admin actions)
+  // ============================================================
+
+  Future<void> _verifyRepair(ReportModel report) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Verify Repair'),
+        content: const Text(
+          'Confirm this repair meets the requirements?\n\n'
+          'This will close the report.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Yes, Verify'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final uid = _auth.currentUid;
+    if (uid == null) return;
+
+    setState(() => _isProcessing = true);
+
+    try {
+      await _reportService.verifyRepair(
+        reportId: report.id,
+        verifierUid: uid,
+        note: 'Verified by admin',
+      );
+
+      // Notify reporter
+      await _notificationService.createNotification(
+        userId: report.userId,
+        title: 'Report Verified',
+        body: 'Your report ${report.reportNumber} has been resolved.',
+        type: NotificationType.reportResolved,
+        reportId: report.id,
+        reportNumber: report.reportNumber,
+      );
+
+      // Notify worker
+      if (report.assignedTo != null) {
+        await _notificationService.createNotification(
+          userId: report.assignedTo!,
+          title: 'Repair Verified',
+          body: 'Your repair for ${report.reportNumber} was verified.',
+          type: NotificationType.reportResolved,
+          reportId: report.id,
+          reportNumber: report.reportNumber,
+        );
+      }
+
+      if (!mounted) return;
+      AppSnackbar.success(context, 'Repair verified');
+    } catch (e) {
+      if (!mounted) return;
+      AppSnackbar.error(context, 'Failed: $e');
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Future<void> _disputeRepair(ReportModel report) async {
+    final reasonCtrl = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reject Repair'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Why is this repair being rejected?',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonCtrl,
+              maxLines: 3,
+              autofocus: true,
+              decoration: const InputDecoration(
+                hintText: 'e.g. Photo does not show the repaired area.',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (reasonCtrl.text.trim().length < 5) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please give a reason'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+                return;
+              }
+              Navigator.pop(ctx, true);
+            },
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final uid = _auth.currentUid;
+    if (uid == null) return;
+
+    setState(() => _isProcessing = true);
+
+    try {
+      await _reportService.disputeRepair(
+        reportId: report.id,
+        reporterUid: uid,
+        reason: reasonCtrl.text.trim(),
+      );
+
+      // Notify worker
+      if (report.assignedTo != null) {
+        await _notificationService.createNotification(
+          userId: report.assignedTo!,
+          title: 'Repair Rejected',
+          body: 'Your repair for ${report.reportNumber} was rejected: '
+              '${reasonCtrl.text.trim()}',
+          type: NotificationType.reportRejected,
+          reportId: report.id,
+          reportNumber: report.reportNumber,
+        );
+      }
+
+      if (!mounted) return;
+      AppSnackbar.info(context, 'Repair rejected');
+    } catch (e) {
+      if (!mounted) return;
+      AppSnackbar.error(context, 'Failed: $e');
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  // ============================================================
+  // TIMELINE
+  // ============================================================
+
   Widget _buildTimelineSection(ReportModel report) {
     if (report.statusHistory.isEmpty) return const SizedBox.shrink();
 
@@ -331,6 +892,10 @@ class ReportAdminViewScreen extends StatelessWidget {
     );
   }
 
+  // ============================================================
+  // ADMIN RESPONSE CARD
+  // ============================================================
+
   Widget _buildAdminResponseCard(ReportModel report) {
     return Container(
       width: double.infinity,
@@ -371,6 +936,10 @@ class ReportAdminViewScreen extends StatelessWidget {
       ),
     );
   }
+
+  // ============================================================
+  // HELPERS
+  // ============================================================
 
   Widget _card(String title, Widget child) {
     return Container(
@@ -426,5 +995,9 @@ class ReportAdminViewScreen extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  String _formatDate(DateTime dt) {
+    return DateFormat('d MMM yyyy • HH:mm').format(dt);
   }
 }

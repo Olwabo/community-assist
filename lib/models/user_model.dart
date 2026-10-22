@@ -72,7 +72,7 @@ class UserModel {
   bool get isWorker => role == UserRole.worker;
   bool get isMember => role == UserRole.member;
 
-  // ---------- Firestore ----------
+  //Firestore
 
   factory UserModel.fromMap(String uid, Map<String, dynamic> map) {
     return UserModel(

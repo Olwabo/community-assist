@@ -1,9 +1,7 @@
 import 'dart:math';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
 import '../../constants/app_colors.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
@@ -260,10 +258,6 @@ class _AddWorkerScreenState extends State<AddWorkerScreen> {
     );
   }
 }
-
-// ============================================================
-// CREDENTIALS DIALOG — top level, not nested
-// ============================================================
 
 class _CredentialsDialog extends StatefulWidget {
   final UserModel worker;

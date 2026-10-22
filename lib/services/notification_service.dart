@@ -9,9 +9,7 @@ class NotificationService {
   CollectionReference<Map<String, dynamic>> get _notifications =>
       _db.collection('notifications');
 
-  // ---------------- Permissions & tokens ----------------
-
-  /// Ask the user for notification permission (mostly needed on iOS).
+  // Ask the user for notification permission (mostly needed on iOS).
   Future<bool> requestPermission() async {
     final settings = await _fcm.requestPermission(
       alert: true,
@@ -22,7 +20,7 @@ class NotificationService {
         settings.authorizationStatus == AuthorizationStatus.provisional;
   }
 
-  /// Get the device FCM token.
+  // Get the device FCM token.
   Future<String?> getToken() async {
     try {
       return await _fcm.getToken();
@@ -38,9 +36,7 @@ class NotificationService {
     } catch (_) {}
   }
 
-  // ---------------- Firestore feed ----------------
-
-  /// Stream notification feed for the given user.
+  // Stream notification feed for the given user.
   Stream<List<AppNotificationModel>> streamUserNotifications(String userId) {
     return _notifications
         .where('userId', isEqualTo: userId)
@@ -52,7 +48,7 @@ class NotificationService {
             .toList());
   }
 
-  /// Count unread notifications for the user.
+  // Count unread notifications for the user.
   Stream<int> streamUnreadCount(String userId) {
     return _notifications
         .where('userId', isEqualTo: userId)
@@ -77,8 +73,7 @@ class NotificationService {
     await batch.commit();
   }
 
-  /// Client-side helper to create a notification document.
-  /// In production, this should be done by a Cloud Function.
+  // Client-side helper to create a notification document.
   Future<void> createNotification({
     required String userId,
     required String title,

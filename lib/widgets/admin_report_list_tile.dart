@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
 import '../constants/app_categories.dart';
 import '../constants/app_colors.dart';
 import '../models/report_model.dart';
@@ -105,7 +104,7 @@ class AdminReportListTile extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 10),
-              // Row 2: Status + date
+                          // Row 2: Status + date
               Row(
                 children: [
                   StatusBadge(status: report.status, compact: true),
@@ -118,7 +117,39 @@ class AdminReportListTile extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  if (report.adminResponse == null ||
+                  if (report.assignedToName != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF14B8A6)
+                            .withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.handyman_outlined,
+                            size: 10,
+                            color: Color(0xFF0F766E),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            report.assignedToName!,
+                            style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF0F766E),
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (report.adminResponse == null ||
                       report.adminResponse!.isEmpty)
                     Container(
                       padding: const EdgeInsets.symmetric(

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../constants/app_colors.dart';
 import '../../constants/app_statuses.dart';
 import '../../models/report_model.dart';
@@ -129,23 +128,29 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
           return _buildEmptyState();
         }
 
-        return ListView.separated(
-          padding: const EdgeInsets.all(20),
-          itemCount: filtered.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 10),
-          itemBuilder: (_, i) {
-            final r = filtered[i];
-            return ReportListTile(
-              report: r,
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ReportDetailsScreen(reportId: r.id),
-                  ),
-                );
-              },
-            );
+          return RefreshIndicator(
+          onRefresh: () async {
+            await Future.delayed(const Duration(seconds: 1));
           },
+          child: ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(20),
+            itemCount: filtered.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 10),
+            itemBuilder: (_, i) {
+              final r = filtered[i];
+              return ReportListTile(
+                report: r,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ReportDetailsScreen(reportId: r.id),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
         );
       },
     );

@@ -1,14 +1,13 @@
 import '../constants/app_categories.dart';
 import 'report_model.dart';
 
-/// A draft of a report being built across the multi-step submission flow.
-/// Not yet persisted to Firestore.
+
 class ReportDraft {
   ReportCategory? category;
   String description;
-  String? photoLocalPath;    // Local file path (mobile)
-  String? photoUrl;          // Remote URL (after upload, filled at submit)
-  String? photoStoragePath;  // For deletion if needed
+  String? photoLocalPath;
+  String? photoUrl;
+  String? photoStoragePath;
   ReportLocation? location;
 
   ReportDraft({

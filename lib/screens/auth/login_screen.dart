@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
 import '../../constants/app_colors.dart';
 import '../../constants/app_strings.dart';
 import '../../services/auth_service.dart';
@@ -11,6 +10,7 @@ import '../../widgets/primary_button.dart';
 import 'register_screen.dart';
 import '../admin/admin_dashboard.dart';
 import '../member/member_dashboard.dart';
+import '../worker/worker_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -52,14 +52,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
       AppSnackbar.success(context, 'Welcome back, ${user.firstName}!');
 
-      // Route based on role
+            // Route based on role
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => user.isAdmin
-              ? const AdminDashboard()
-              : const MemberDashboard(),
+          builder: (_) {
+            if (user.isAdmin) return const AdminDashboard();
+            if (user.isWorker) return const WorkerDashboard();
+            return const MemberDashboard();
+          },
         ),
       );
+      
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       AppSnackbar.error(context, _mapAuthError(e));
@@ -121,18 +124,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 // Logo
                 Center(
-                  child: Container(
-                    width: 90,
-                    height: 90,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(22),
-                    ),
-                    child: const Icon(
-                      Icons.location_city,
-                      size: 50,
-                      color: Colors.white,
-                    ),
+                  child: SizedBox(
+                    width: 160,
+                    height: 160,
+                    child: Image.asset('assets/images/logo.png'),
                   ),
                 ),
 

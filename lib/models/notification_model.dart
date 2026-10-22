@@ -54,7 +54,7 @@ class AppNotificationModel {
     required this.createdAt,
   });
 
-  // ---------- Firestore ----------
+  //Firestore
 
   factory AppNotificationModel.fromMap(String id, Map<String, dynamic> map) {
     return AppNotificationModel(

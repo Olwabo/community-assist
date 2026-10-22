@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../constants/app_colors.dart';
+import '../../../models/community_config.dart';
 import '../../../models/report_draft.dart';
 import '../../../models/report_model.dart';
+import '../../../services/community_service.dart';
 import '../../../services/location_service.dart';
 import '../../../utils/snackbar.dart';
 import '../../../widgets/location_map.dart';
@@ -21,10 +23,13 @@ class ReportLocationScreen extends StatefulWidget {
 
 class _ReportLocationScreenState extends State<ReportLocationScreen> {
   final _locationService = LocationService();
+  final _communityService = CommunityService();
 
   ReportLocation? _location;
   String? _errorMessage;
   bool _isLoading = false;
+
+  LocationCheckResult? _boundaryCheck;
 
   @override
   void initState() {
@@ -36,6 +41,7 @@ class _ReportLocationScreenState extends State<ReportLocationScreen> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _boundaryCheck = null; // reset previous check
     });
 
     final result = await _locationService.getCurrentLocation();
@@ -43,11 +49,34 @@ class _ReportLocationScreenState extends State<ReportLocationScreen> {
     if (!mounted) return;
 
     if (result.isSuccess) {
+      final loc = result.location!;
+
+      // 1. Check community boundary
+      final check = await _communityService.checkReportLocation(loc);
+      if (!mounted) return;
+
+      if (check == null) {
+        setState(() {
+          _errorMessage = 'Community configuration not found. Check internet connection.';
+          _isLoading = false;
+        });
+        return;
+      }
+
       setState(() {
-        _location = result.location;
+        _location = loc;
+        _boundaryCheck = check;
         _isLoading = false;
       });
-      AppSnackbar.success(context, 'Location captured');
+
+      if (check.isInside) {
+        AppSnackbar.success(context, 'Location captured');
+      } else {
+        AppSnackbar.error(
+          context,
+          'You are outside the ${check.community.name} boundary',
+        );
+      }
     } else {
       setState(() {
         _errorMessage = result.error;
@@ -55,21 +84,36 @@ class _ReportLocationScreenState extends State<ReportLocationScreen> {
       });
       AppSnackbar.error(context, result.error ?? 'Could not get location');
     }
+    
   }
 
-  void _onMapTap(ReportLocation newLoc) {
-    setState(() {
-      _location = ReportLocation(
-        latitude: newLoc.latitude,
-        longitude: newLoc.longitude,
-        accuracy: _location?.accuracy,
-      );
-    });
+  void _onMapTap(ReportLocation newLoc) async {
+    final updated = ReportLocation(
+      latitude: newLoc.latitude,
+      longitude: newLoc.longitude,
+      accuracy: _location?.accuracy,
+    );
+
+    setState(() => _location = updated);
+
+    // Re-check boundary
+    final check = await _communityService.checkReportLocation(updated);
+    if (!mounted) return;
+
+    setState(() => _boundaryCheck = check);
   }
 
   void _continue() {
     if (_location == null) {
       AppSnackbar.error(context, 'Please capture your location first');
+      return;
+    }
+
+    if (_boundaryCheck != null && !_boundaryCheck!.isInside) {
+      AppSnackbar.error(
+        context,
+        'You must be inside ${_boundaryCheck!.community.name} to submit a report',
+      );
       return;
     }
 
@@ -84,6 +128,9 @@ class _ReportLocationScreenState extends State<ReportLocationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isOutside =
+        _boundaryCheck != null && !_boundaryCheck!.isInside;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Report an Issue')),
       body: SafeArea(
@@ -119,9 +166,15 @@ class _ReportLocationScreenState extends State<ReportLocationScreen> {
 
                     _buildMapArea(),
 
+                    // Boundary status (inside/outside indicator)
+                    if (_boundaryCheck != null) ...[
+                      const SizedBox(height: 12),
+                      _buildBoundaryStatus(),
+                    ],
+
                     const SizedBox(height: 16),
 
-                    if (_location != null)
+                    if (_location != null && !isOutside)
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 4),
                         child: Row(
@@ -174,7 +227,8 @@ class _ReportLocationScreenState extends State<ReportLocationScreen> {
               child: PrimaryButton(
                 label: 'Continue',
                 icon: Icons.arrow_forward,
-                onPressed: _continue,
+                // Disable if outside boundary
+                onPressed: isOutside ? null : _continue,
               ),
             ),
           ],
@@ -182,6 +236,65 @@ class _ReportLocationScreenState extends State<ReportLocationScreen> {
       ),
     );
   }
+
+  // ============================================================
+  // BOUNDARY STATUS INDICATOR
+  // ============================================================
+
+  Widget _buildBoundaryStatus() {
+    final check = _boundaryCheck!;
+    final isInside = check.isInside;
+    final color = isInside ? AppColors.success : AppColors.error;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color, width: 1),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isInside ? Icons.check_circle : Icons.location_off,
+            color: color,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isInside
+                      ? 'Inside ${check.community.name}'
+                      : 'Outside ${check.community.name}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${check.distanceKm.toStringAsFixed(1)} km from community center '
+                  '(allowed: ${check.community.radiusKm.toInt()} km)',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // MAP AREA
+  // ============================================================
 
   Widget _buildMapArea() {
     // No location yet
@@ -265,74 +378,74 @@ class _ReportLocationScreenState extends State<ReportLocationScreen> {
     }
 
     // Has location — show map
-    return Column(
+    return Stack(
       children: [
-        Stack(
-          children: [
-            LocationMap(
-              location: _location!,
-              height: 260,
-              interactive: true,
-              onLocationChanged: _onMapTap,
-            ),
-            // Accuracy chip overlay
-            if (_location!.accuracy != null)
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 6,
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.my_location,
-                        size: 12,
-                        color: AppColors.success,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '±${_location!.accuracy!.toStringAsFixed(0)}m',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            if (_isLoading)
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Center(
-                    child: CircularProgressIndicator(color: Colors.white),
-                  ),
-                ),
-              ),
-          ],
+        LocationMap(
+          location: _location!,
+          height: 260,
+          interactive: true,
+          onLocationChanged: _onMapTap,
         ),
+        // Accuracy chip overlay
+        if (_location!.accuracy != null)
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 6,
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.my_location,
+                    size: 12,
+                    color: AppColors.success,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '±${_location!.accuracy!.toStringAsFixed(0)}m',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (_isLoading)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+            ),
+          ),
       ],
     );
   }
+
+  // ============================================================
+  // ERROR CARD
+  // ============================================================
 
   Widget _errorCard(String message) {
     return Container(

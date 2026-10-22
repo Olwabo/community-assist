@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../constants/app_colors.dart';
 import '../../constants/app_statuses.dart';
 import '../../models/report_model.dart';
@@ -57,7 +56,10 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
           children: [
             _filterChip('All', null),
             const SizedBox(width: 8),
-            ...ReportStatus.values.map((status) {
+            // Show only these specific statuses in the filter bar
+            ...ReportStatus.values.where((s) => 
+              s != ReportStatus.underReview && s != ReportStatus.verified
+            ).map((status) {
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: _filterChip(status.label, status),
@@ -141,7 +143,12 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
 
         final reports = snapshot.data ?? const <ReportModel>[];
 
-        if (reports.isEmpty) {
+        // If the filter is 'repaired', show both repaired AND verified reports
+        final filteredReports = _activeFilter == ReportStatus.repaired
+            ? reports.where((r) => r.status == ReportStatus.repaired || r.status == ReportStatus.verified).toList()
+            : reports;
+
+        if (filteredReports.isEmpty) {
           return _buildEmptyState();
         }
 
@@ -152,8 +159,8 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
               child: Row(
                 children: [
                   Text(
-                    'Showing ${reports.length} '
-                    'report${reports.length == 1 ? '' : 's'}',
+                    'Showing ${filteredReports.length} '
+                    'report${filteredReports.length == 1 ? '' : 's'}',
                     style: const TextStyle(
                       fontSize: 12,
                       color: AppColors.textSecondary,
@@ -165,10 +172,10 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
             Expanded(
               child: ListView.separated(
                 padding: const EdgeInsets.all(20),
-                itemCount: reports.length,
+                itemCount: filteredReports.length,
                 separatorBuilder: (context, index) => const SizedBox(height: 10),
                 itemBuilder: (_, i) {
-                  final r = reports[i];
+                  final r = filteredReports[i];
                   return AdminReportListTile(
                     report: r,
                     onTap: () {

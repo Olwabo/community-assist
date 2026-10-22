@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image/image.dart' as img;
@@ -15,7 +14,6 @@ class UploadResult {
 class StorageService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  // ============ FIREBASE STORAGE (kept for future use) ============
 
   Future<UploadResult> uploadReportPhoto({
     required String userId,
@@ -46,10 +44,9 @@ class StorageService {
     } catch (_) {}
   }
 
-  // ============ BASE64 IN FIRESTORE (current approach) ============
 
-  /// Compresses and encodes a photo as Base64 for Firestore storage.
-  /// Returns null if the compressed image exceeds the safe Firestore size.
+  // Compresses and encodes a photo as Base64 for Firestore storage.
+  // Returns null if the compressed image exceeds the safe Firestore size.
   Future<String?> encodePhotoAsBase64(
     File file, {
     int maxDimension = 800,
@@ -76,7 +73,7 @@ class StorageService {
     }
   }
 
-  /// Same as above but accepts raw bytes (for web).
+  // Same as above but accepts raw bytes.
   Future<String?> encodeBytesAsBase64(
     Uint8List input, {
     int maxDimension = 800,
@@ -100,7 +97,7 @@ class StorageService {
     }
   }
 
-  /// Decodes a Base64 string back to bytes for Image.memory().
+  // Decodes a Base64 string back to bytes for Image.memory().
   Uint8List? decodeBase64Photo(String? base64Str) {
     if (base64Str == null || base64Str.isEmpty) return null;
     try {
@@ -110,7 +107,7 @@ class StorageService {
     }
   }
 
-  /// Internal: compress image bytes to a target size.
+  // Internal: compress image bytes to a target size.
   Future<Uint8List> _compressBytes(
     Uint8List input, {
     int maxDimension = 800,

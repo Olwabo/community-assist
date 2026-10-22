@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import 'auth/login_screen.dart';
 import 'member/member_dashboard.dart';
 import 'admin/admin_dashboard.dart';
+import 'worker/worker_dashboard.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -46,8 +47,10 @@ class _SplashScreenState extends State<SplashScreen> {
       }
 
             // Route by role
-      if (profile.isAdmin) {
+            if (profile.isAdmin) {
         _goTo(const AdminDashboard());
+      } else if (profile.isWorker) {
+        _goTo(const WorkerDashboard());
       } else {
         _goTo(const MemberDashboard());
       }
@@ -72,18 +75,22 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 100,
-              height: 100,
+              Container(
+              width: 140,
+              height: 140,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
-              child: const Icon(
-                Icons.location_city,
-                size: 60,
-                color: AppColors.primary,
-              ),
+              padding: const EdgeInsets.all(16),
+              child: Image.asset('assets/images/logo.png'),
             ),
             const SizedBox(height: 24),
             const Text(
