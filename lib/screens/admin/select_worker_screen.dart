@@ -41,6 +41,7 @@ class _SelectWorkerScreenState extends State<SelectWorkerScreen> {
         reportId: widget.report.id,
         workerId: worker.uid,
         workerName: worker.fullName,
+        workerPhone: worker.phone, 
         adminUid: adminUid,
         note: 'Assigned to ${worker.fullName}',
       );

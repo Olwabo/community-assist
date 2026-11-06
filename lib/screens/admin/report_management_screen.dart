@@ -18,14 +18,22 @@ class ReportManagementScreen extends StatefulWidget {
 
 class _ReportManagementScreenState extends State<ReportManagementScreen> {
   final _reportService = ReportService();
+  final _searchController = TextEditingController();
 
-  /// null = "All" filter
+  // null = "All" filter
   ReportStatus? _activeFilter;
+  String _searchQuery = ''; 
 
   @override
   void initState() {
     super.initState();
     _activeFilter = widget.initialFilter;
+  }
+
+   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -34,10 +42,50 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
       appBar: AppBar(
         title: const Text('Manage Reports'),
       ),
-      body: SafeArea(
+           body: SafeArea(
         child: Column(
           children: [
             _buildFilterBar(),
+            
+            // NEW: Search Bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() => _searchQuery = value.toLowerCase());
+                },
+                decoration: InputDecoration(
+                  hintText: 'Search by ID or Reporter Name...',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.divider),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.primary),
+                  ),
+                ),
+              ),
+            ),
+
             Expanded(child: _buildList()),
           ],
         ),
@@ -141,12 +189,23 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
           );
         }
 
-        final reports = snapshot.data ?? const <ReportModel>[];
+             final reports = snapshot.data ?? const <ReportModel>[];
 
-        // If the filter is 'repaired', show both repaired AND verified reports
-        final filteredReports = _activeFilter == ReportStatus.repaired
+        // 1. First, filter by Status (Repaired merges with Verified)
+        List<ReportModel> statusFiltered = _activeFilter == ReportStatus.repaired
             ? reports.where((r) => r.status == ReportStatus.repaired || r.status == ReportStatus.verified).toList()
             : reports;
+
+        // 2. Then, filter by Search Query
+        if (_searchQuery.isNotEmpty) {
+          statusFiltered = statusFiltered.where((r) {
+            final matchesId = r.reportNumber.toLowerCase().contains(_searchQuery);
+            final matchesName = r.userName.toLowerCase().contains(_searchQuery);
+            return matchesId || matchesName;
+          }).toList();
+        }
+
+        final filteredReports = statusFiltered;
 
         if (filteredReports.isEmpty) {
           return _buildEmptyState();

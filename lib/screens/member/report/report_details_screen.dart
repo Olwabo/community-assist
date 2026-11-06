@@ -1,10 +1,8 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
-
 import '../../../constants/app_categories.dart';
 import '../../../constants/app_colors.dart';
 import '../../../constants/app_statuses.dart';
@@ -16,6 +14,7 @@ import '../../../services/report_service.dart';
 import '../../../utils/snackbar.dart';
 import '../../../widgets/location_map.dart';
 import '../../../widgets/status_badge.dart';
+import '../../../widgets/report_status_stepper.dart';
 
 class ReportDetailsScreen extends StatefulWidget {
   final String reportId;
@@ -81,6 +80,8 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
                 const SizedBox(height: 20),
                 _buildStatusHeader(report),
                 const SizedBox(height: 24),
+                ReportStatusStepper(currentStatus: report.status),
+                const SizedBox(height: 24),
                 _buildCategorySection(report),
                 const SizedBox(height: 16),
                 _buildDescriptionSection(report),
@@ -113,9 +114,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
     );
   }
 
-  // ============================================================
-  // PHOTO
-  // ============================================================
 
   Widget _buildPhoto(ReportModel report) {
     Uint8List? bytes;
@@ -163,9 +161,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
     );
   }
 
-  // ============================================================
-  // STATUS HEADER
-  // ============================================================
 
   Widget _buildStatusHeader(ReportModel report) {
     return Column(
@@ -224,9 +219,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
     );
   }
 
-  // ============================================================
-  // SECTIONS
-  // ============================================================
 
   Widget _buildCategorySection(ReportModel report) {
     return _card(
@@ -287,9 +279,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
     );
   }
 
-  // ============================================================
-  // REPAIR EVIDENCE
-  // ============================================================
 
   Widget _buildRepairEvidenceSection(ReportModel report) {
     Uint8List? repairBytes;
@@ -562,9 +551,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
     );
   }
 
-  // ============================================================
-  // VERIFY / DISPUTE ACTIONS
-  // ============================================================
 
   Future<void> _verifyRepair(ReportModel report) async {
     final confirmed = await showDialog<bool>(
@@ -698,9 +684,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
     }
   }
 
-  // ============================================================
-  // TIMELINE
-  // ============================================================
 
   Widget _buildTimelineSection(ReportModel report) {
     if (report.statusHistory.isEmpty) {
@@ -801,9 +784,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
     );
   }
 
-  // ============================================================
-  // ADMIN RESPONSE
-  // ============================================================
 
   Widget _buildAdminResponse(ReportModel report) {
     return Container(
@@ -852,9 +832,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
     );
   }
 
-  // ============================================================
-  // META
-  // ============================================================
 
   Widget _buildMetaSection(ReportModel report) {
     final currentUid = _auth.currentUid;
@@ -922,16 +899,13 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
     );
   }
 
-  // ============================================================
-  // HELPERS
-  // ============================================================
 
   Widget _card(String title, Widget child) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.divider),
       ),

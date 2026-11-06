@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
+
 import '../../constants/app_colors.dart';
 import '../../constants/app_statuses.dart';
 import '../../models/report_model.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
+import '../../services/export_service.dart';
 import '../../services/report_service.dart';
+import '../../widgets/admin_activity_chart.dart';
 import '../../widgets/report_list_tile.dart';
 import '../auth/login_screen.dart';
+import '../member/profile_screen.dart';
+import 'manage_users_screen.dart';
 import 'manage_workers_screen.dart';
 import 'report_admin_view_screen.dart';
 import 'report_management_screen.dart';
-import '../member/profile_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -53,8 +57,37 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
+  Future<void> _exportData(List<ReportModel> reports) async {
+    if (reports.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No reports to export')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      await ExportService().exportReportsToCsv(reports);
+      if (!mounted) return;
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Export failed: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return StreamBuilder<UserModel?>(
       stream: _auth.streamCurrentUser(),
       builder: (context, userSnap) {
@@ -73,7 +106,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Admin Console'),
+            title: const Text('Admin Dashboard'),
             actions: [
               IconButton(
                 icon: const Icon(Icons.person_outline),
@@ -119,6 +152,37 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   _buildOverview(),
                   const SizedBox(height: 28),
                   
+                  // --- CLEAN ACTIVITY UI ---
+                  const Text(
+                    'Last 7 Days Activity',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.divider),
+                    ),
+                    child: StreamBuilder<List<ReportModel>>(
+                      stream: _reportService.streamAllReports(),
+                      builder: (context, snapshot) {
+                        final reports = snapshot.data ?? [];
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const SizedBox(height: 270, child: Center(child: CircularProgressIndicator()));
+                        }
+                        return AdminActivityChart(reports: reports);
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  // -----------------------------
+
                   // Quick Actions
                   const Text(
                     'Quick Actions',
@@ -257,92 +321,112 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Widget _buildQuickActions() {
-    return Row(
-      children: [
-        Expanded(
-          child: Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const ReportManagementScreen(),
+    return StreamBuilder<List<ReportModel>>(
+      stream: _reportService.streamAllReports(),
+      builder: (context, snapshot) {
+        final reports = snapshot.data ?? [];
+        
+        return Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _actionButton(
+                    label: 'All Reports',
+                    icon: Icons.folder_open,
+                    color: AppColors.primary,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const ReportManagementScreen()),
+                      );
+                    },
                   ),
-                );
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.folder_open, color: AppColors.primary),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'All Reports',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _actionButton(
+                    label: 'Workers',
+                    icon: Icons.engineering,
+                    color: const Color(0xFF14B8A6),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const ManageWorkersScreen()),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _actionButton(
+                    label: 'Citizens',
+                    icon: Icons.people_outline,
+                    color: const Color(0xFF8B5CF6), // Purple
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const ManageUsersScreen()),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _actionButton(
+                    label: 'Export CSV',
+                    icon: Icons.file_download,
+                    color: AppColors.success,
+                    onTap: () => _exportData(reports),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _actionButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                  color: AppColors.textPrimary,
                 ),
               ),
-            ),
+            ],
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const ManageWorkersScreen(),
-                  ),
-                );
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF14B8A6).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.engineering, color: Color(0xFF14B8A6)),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Workers',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 

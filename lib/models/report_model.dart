@@ -94,6 +94,7 @@ class ReportModel {
 
     // Assignment (worker)
   final String? assignedToName;
+  final String? assignedToPhone;
   final DateTime? assignedAt;
 
   // Repair evidence (worker)
@@ -128,6 +129,7 @@ class ReportModel {
     required this.updatedAt,
     this.resolvedAt,
     this.assignedToName,
+    this.assignedToPhone,
     this.assignedAt,
     this.repairPhotoBase64,
     this.repairLocation,
@@ -178,6 +180,7 @@ class ReportModel {
       updatedAt: _toDate(map['updatedAt']),
       resolvedAt: map['resolvedAt'] == null ? null : _toDate(map['resolvedAt']),
       assignedToName: map['assignedToName'] as String?,
+      assignedToPhone: map['assignedToPhone'] as String?,
       assignedAt: map['assignedAt'] == null
           ? null
           : _toDate(map['assignedAt']),
@@ -221,6 +224,7 @@ class ReportModel {
       'updatedAt': Timestamp.fromDate(updatedAt),
       'resolvedAt': resolvedAt == null ? null : Timestamp.fromDate(resolvedAt!),
       'assignedToName': assignedToName,
+      'assignedToPhone': assignedToPhone,
       'assignedAt': assignedAt == null
           ? null
           : Timestamp.fromDate(assignedAt!),
@@ -253,6 +257,7 @@ class ReportModel {
     String? adminResponse,
     String? assignedTo,
     String? assignedToName,
+    String? assignedToPhone,
     DateTime? assignedAt,
     String? repairPhotoBase64,
     ReportLocation? repairLocation,
@@ -282,6 +287,7 @@ class ReportModel {
       adminResponse: adminResponse ?? this.adminResponse,
       assignedTo: assignedTo ?? this.assignedTo,
       assignedToName: assignedToName ?? this.assignedToName,
+      assignedToPhone: assignedToPhone ?? this.assignedToPhone,
       assignedAt: assignedAt ?? this.assignedAt,
       repairPhotoBase64: repairPhotoBase64 ?? this.repairPhotoBase64,
       repairLocation: repairLocation ?? this.repairLocation,

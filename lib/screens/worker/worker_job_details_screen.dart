@@ -14,6 +14,9 @@ import '../../widgets/location_map.dart';
 import '../../widgets/status_badge.dart';
 import 'submit_repair_screen.dart';
 import '../../models/notification_model.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../widgets/report_status_stepper.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class WorkerJobDetailsScreen extends StatefulWidget {
   final String reportId;
@@ -84,6 +87,28 @@ class _WorkerJobDetailsScreenState extends State<WorkerJobDetailsScreen> {
     }
   }
 
+  Future<void> _openMaps(double lat, double lng) async {
+    // For Web, use the standard Google Maps HTTPS link.
+    // For Mobile, try the native geo: intent first.
+    final Uri uri;
+    
+    if (kIsWeb) {
+      uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+    } else {
+      uri = Uri.parse('geo:$lat,$lng?q=$lat,$lng(Job Site)');
+    }
+
+    try {
+      // Launch the URL
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open maps: $e')),
+      );
+    }
+  }
+
   Future<void> _notifyStatusChange({
     required ReportModel report,
     required ReportStatus newStatus,
@@ -133,6 +158,8 @@ class _WorkerJobDetailsScreenState extends State<WorkerJobDetailsScreen> {
                 const SizedBox(height: 16),
                 StatusBadge(status: report.status),
                 const SizedBox(height: 20),
+                ReportStatusStepper(currentStatus: report.status),
+                const SizedBox(height: 24),
                 _buildCategoryCard(report),
                 const SizedBox(height: 16),
                 _buildDescriptionCard(report),
@@ -242,7 +269,27 @@ class _WorkerJobDetailsScreenState extends State<WorkerJobDetailsScreen> {
             height: 180,
             interactive: true,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
+          
+          // NEW: Navigate Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _openMaps(
+                report.location.latitude,
+                report.location.longitude,
+              ),
+              icon: const Icon(Icons.directions),
+              label: const Text('Navigate to Job Site'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF14B8A6),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 8),
           Text(
             '${report.location.latitude.toStringAsFixed(5)}, '
             '${report.location.longitude.toStringAsFixed(5)}',

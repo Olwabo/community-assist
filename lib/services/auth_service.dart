@@ -25,6 +25,35 @@ class AuthService {
     });
   }
 
+    // Stream all users (for Admin user management).
+  Stream<List<UserModel>> streamAllMembers() {
+    return _db
+        .collection('users')
+        .where('role', isEqualTo: 'member')
+        .snapshots()
+        .map((snap) {
+      final users = snap.docs
+          .map((d) => UserModel.fromMap(d.id, d.data()))
+          .toList();
+      // Sort alphabetically by first name
+      users.sort((a, b) => a.firstName.toLowerCase().compareTo(b.firstName.toLowerCase()));
+      return users;
+    });
+  }
+
+  /// Deactivate or reactivate a user account.
+  Future<void> toggleUserStatus(String userId, bool isActive) async {
+    final adminProfile = await getCurrentUserModel();
+    if (adminProfile == null || !adminProfile.isAdmin) {
+      throw Exception('Only admins can manage users');
+    }
+
+    await _db.collection('users').doc(userId).update({
+      'isActive': isActive,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   // Fetch user once
   Future<UserModel?> getCurrentUserModel() async {
     final uid = currentUid;
@@ -91,7 +120,15 @@ class AuthService {
       throw Exception('User profile not found. Please contact support.');
     }
 
-    return UserModel.fromMap(doc.id, doc.data()!);
+    final user = UserModel.fromMap(doc.id, doc.data()!);
+      
+      
+      if (!user.isActive) {
+      await _auth.signOut();
+      throw Exception('Your account has been suspended by an administrator.');
+    }
+    
+    return user;
   }
 
   Future<void> logout() async {

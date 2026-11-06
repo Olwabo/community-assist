@@ -16,6 +16,8 @@ import '../../widgets/location_map.dart';
 import '../../widgets/status_badge.dart';
 import 'report_update_screen.dart';
 import 'select_worker_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../widgets/report_status_stepper.dart';
 
 class ReportAdminViewScreen extends StatefulWidget {
   final String reportId;
@@ -79,6 +81,8 @@ class _ReportAdminViewScreenState extends State<ReportAdminViewScreen> {
                 const SizedBox(height: 20),
                 _buildStatusHeader(context, report),
                 const SizedBox(height: 24),
+                ReportStatusStepper(currentStatus: report.status),
+                const SizedBox(height: 24),
                 _buildInfoSection(report),
                 const SizedBox(height: 16),
                 _buildLocationSection(report),
@@ -107,9 +111,16 @@ class _ReportAdminViewScreenState extends State<ReportAdminViewScreen> {
     );
   }
 
-  // ============================================================
-  // PHOTO
-  // ============================================================
+    Future<void> _makePhoneCall(String phoneNumber) async {
+    final Uri launchUri = Uri(
+      scheme: 'tel',
+      path: phoneNumber,
+    );
+    if (!await launchUrl(launchUri)) {
+      if (!mounted) return;
+      AppSnackbar.error(context, 'Could not launch phone dialer');
+    }
+  }
 
   Widget _buildPhoto(ReportModel report) {
     Uint8List? bytes;
@@ -265,6 +276,15 @@ class _ReportAdminViewScreenState extends State<ReportAdminViewScreen> {
                     ],
                   ),
                 ),
+                
+                // NEW: CALL BUTTON
+                if (report.assignedToPhone != null && report.assignedToPhone!.isNotEmpty)
+                  IconButton(
+                    onPressed: () => _makePhoneCall(report.assignedToPhone!),
+                    icon: const Icon(Icons.phone, color: AppColors.success),
+                    tooltip: 'Call Worker',
+                  ),
+
                 if (report.assignedAt != null)
                   Text(
                     DateFormat('d MMM').format(report.assignedAt!),
@@ -946,7 +966,7 @@ class _ReportAdminViewScreenState extends State<ReportAdminViewScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+       color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.divider),
       ),

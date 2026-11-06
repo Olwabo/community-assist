@@ -109,8 +109,8 @@ class _ReportPhotoScreenState extends State<ReportPhotoScreen> {
       AppSnackbar.error(context, 'Please add a photo');
       return;
     }
-
     widget.draft.photoLocalPath = _localPath;
+    widget.draft.photoBytes = _previewBytes;
 
     Navigator.of(context).push(
       MaterialPageRoute(

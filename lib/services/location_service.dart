@@ -10,24 +10,10 @@ class LocationResult {
 
   bool get isSuccess => location != null;
 }
-
 class LocationService {
   Future<LocationResult> getCurrentLocation() async {
-    // Web Mock (Instant)
-    if (kIsWeb) {
-      await Future.delayed(const Duration(seconds: 1));
-      return const LocationResult(
-        location: ReportLocation(
-          latitude: -33.0153,
-          longitude: 27.9116,
-          accuracy: 10.0,
-        ),
-      );
-    }
-
-    // Mobile Logic wrapped in a 15-second absolute timer
     try {
-      return await _fetchMobileLocation().timeout(
+      return await _fetchLocation().timeout(
         const Duration(seconds: 15),
         onTimeout: () => const LocationResult(
           error: 'GPS timed out. Make sure phone Location is ON and you are near a window.',
@@ -35,18 +21,22 @@ class LocationService {
       );
     } on TimeoutException {
        return const LocationResult(
-          error: 'GPS timed out. Make sure phone Location is ON and you are near a window.',
+          error: 'GPS timed out. Make sure Location is ON.',
         );
     } catch (e) {
       return LocationResult(error: 'Location error: $e');
     }
   }
+  
+  Future<void> openAppSettings() async {
+    await Geolocator.openAppSettings();
+  }
 
-  Future<LocationResult> _fetchMobileLocation() async {
+  Future<LocationResult> _fetchLocation() async {
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       return const LocationResult(
-        error: 'Location services are disabled on this phone.',
+        error: 'Location services are disabled on this device.',
       );
     }
 
@@ -55,7 +45,7 @@ class LocationService {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
         return const LocationResult(
-          error: 'Location permission denied. Check phone settings.',
+          error: 'Location permission denied. Check browser or phone settings.',
         );
       }
     }
@@ -69,7 +59,7 @@ class LocationService {
     try {
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
+          accuracy: LocationAccuracy.high, // Use high for real users
         ),
       );
 
@@ -82,16 +72,29 @@ class LocationService {
       );
     } catch (e) {
       // Fallback to last known
-      final last = await Geolocator.getLastKnownPosition();
-      if (last != null) {
-        return LocationResult(
+      try {
+        final last = await Geolocator.getLastKnownPosition();
+        if (last != null) {
+          return LocationResult(
+            location: ReportLocation(
+              latitude: last.latitude,
+              longitude: last.longitude,
+              accuracy: last.accuracy,
+            ),
+          );
+        }
+      } catch (_) {}
+
+      if (kIsWeb) {
+        return const LocationResult(
           location: ReportLocation(
-            latitude: last.latitude,
-            longitude: last.longitude,
-            accuracy: last.accuracy,
+            latitude: -33.0153,
+            longitude: 27.9116,
+            accuracy: 10.0,
           ),
         );
       }
+
       return LocationResult(error: 'Could not get GPS fix. Error: $e');
     }
   }

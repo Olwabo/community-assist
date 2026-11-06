@@ -1,10 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
-
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
 import '../../../constants/app_categories.dart';
 import '../../../constants/app_colors.dart';
 import '../../../models/report_draft.dart';
@@ -125,20 +123,30 @@ class _ReportReviewScreenState extends State<ReportReviewScreen> {
       final profile = await _auth.getCurrentUserModel();
       if (profile == null) throw Exception('User profile not found');
 
-      String? photoBase64;
+            String? photoBase64;
+      
+      // Check if it's a mobile photo (File)
       if (draft.photoLocalPath != null && !kIsWeb) {
         photoBase64 = await _storageService.encodePhotoAsBase64(
           File(draft.photoLocalPath!),
           maxDimension: 800,
           quality: 60,
         );
+      } 
+      // Check if it's a web photo (Bytes)
+      else if (draft.photoBytes != null) {
+        photoBase64 = await _storageService.encodeBytesAsBase64(
+          draft.photoBytes!,
+          maxDimension: 800,
+          quality: 60,
+        );
+      }
 
-        if (photoBase64 == null) {
-          if (!mounted) return;
-          setState(() => _isSubmitting = false);
-          AppSnackbar.error(context, 'Photo is too large.');
-          return;
-        }
+      if (photoBase64 == null && (draft.photoLocalPath != null || draft.photoBytes != null)) {
+        if (!mounted) return;
+        setState(() => _isSubmitting = false);
+        AppSnackbar.error(context, 'Photo is too large or could not be processed.');
+        return;
       }
 
       final created = await _reportService.submitReport(

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../../constants/app_colors.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
+import '../../utils/theme_provider.dart';
 import '../auth/login_screen.dart';
-import 'edit_profile_screen.dart';
 import 'change_password_screen.dart';
+import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -12,6 +15,8 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = AuthService();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
 
     return StreamBuilder<UserModel?>(
       stream: auth.streamCurrentUser(),
@@ -35,14 +40,18 @@ class ProfileScreen extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                _buildAvatar(user),
+                _buildAvatar(context, user),
                 const SizedBox(height: 24),
-                _buildInfoCard(user),
+                _buildInfoCard(context, user, cardColor),
                 const SizedBox(height: 16),
+                
                 _buildSection(
+                  context: context,
                   title: 'Account',
+                  cardColor: cardColor,
                   children: [
                     _tile(
+                      context: context,
                       icon: Icons.edit_outlined,
                       title: 'Edit Profile',
                       subtitle: 'Update your name and phone',
@@ -56,6 +65,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     const Divider(height: 1, color: AppColors.divider),
                     _tile(
+                      context: context,
                       icon: Icons.lock_outline,
                       title: 'Change Password',
                       subtitle: 'Update your login password',
@@ -70,10 +80,53 @@ class ProfileScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
+
                 _buildSection(
+                  context: context,
+                  title: 'Preferences',
+                  cardColor: cardColor,
+                  children: [
+                    Consumer<ThemeProvider>(
+                      builder: (context, themeProvider, child) {
+                        return SwitchListTile(
+                          title: Text(
+                            'Dark Mode',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white : AppColors.textPrimary,
+                            ),
+                          ),
+                          subtitle: const Text(
+                            'Switch to a darker theme',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textHint,
+                            ),
+                          ),
+                          value: themeProvider.isDarkMode,
+                          activeThumbColor: AppColors.primary,
+                          onChanged: (value) {
+                            themeProvider.toggleTheme();
+                          },
+                          secondary: const Icon(
+                            Icons.dark_mode_outlined,
+                            color: AppColors.primary,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                _buildSection(
+                  context: context,
                   title: 'Session',
+                  cardColor: cardColor,
                   children: [
                     _tile(
+                      context: context,
                       icon: Icons.logout,
                       title: 'Logout',
                       subtitle: 'Sign out of this device',
@@ -102,7 +155,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAvatar(UserModel user) {
+  Widget _buildAvatar(BuildContext context, UserModel user) {
     return Column(
       children: [
         Container(
@@ -132,10 +185,10 @@ class ProfileScreen extends StatelessWidget {
         const SizedBox(height: 16),
         Text(
           user.fullName,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+            color: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppColors.textPrimary,
           ),
         ),
         const SizedBox(height: 4),
@@ -183,23 +236,24 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoCard(UserModel user) {
+  Widget _buildInfoCard(BuildContext context, UserModel user, Color cardColor) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.divider),
       ),
       child: Column(
         children: [
-          _infoRow(Icons.person_outline, 'Full name', user.fullName),
+          _infoRow(context, Icons.person_outline, 'Full name', user.fullName),
           const SizedBox(height: 12),
-          _infoRow(Icons.email_outlined, 'Email', user.email),
+          _infoRow(context, Icons.email_outlined, 'Email', user.email),
           const SizedBox(height: 12),
-          _infoRow(Icons.phone_outlined, 'Phone', user.phone),
+          _infoRow(context, Icons.phone_outlined, 'Phone', user.phone),
           const SizedBox(height: 12),
           _infoRow(
+            context,
             Icons.calendar_today_outlined,
             'Member since',
             _formatDate(user.createdAt),
@@ -209,7 +263,9 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _infoRow(IconData icon, String label, String value) {
+  Widget _infoRow(BuildContext context, IconData icon, String label, String value) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Row(
       children: [
         Icon(icon, size: 18, color: AppColors.textSecondary),
@@ -227,10 +283,10 @@ class ProfileScreen extends StatelessWidget {
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              color: isDark ? Colors.white : AppColors.textPrimary,
             ),
           ),
         ),
@@ -239,8 +295,10 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildSection({
+    required BuildContext context,
     required String title,
     required List<Widget> children,
+    required Color cardColor,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -259,7 +317,7 @@ class ProfileScreen extends StatelessWidget {
         ),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cardColor,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: AppColors.divider),
           ),
@@ -270,6 +328,7 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _tile({
+    required BuildContext context,
     required IconData icon,
     required String title,
     required String subtitle,
@@ -277,6 +336,8 @@ class ProfileScreen extends StatelessWidget {
     Color? iconColor,
     Color? titleColor,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -299,7 +360,7 @@ class ProfileScreen extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: titleColor ?? AppColors.textPrimary,
+                        color: titleColor ?? (isDark ? Colors.white : AppColors.textPrimary),
                       ),
                     ),
                     const SizedBox(height: 2),

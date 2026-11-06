@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../../constants/app_colors.dart';
 import '../../../models/community_config.dart';
 import '../../../models/report_draft.dart';
@@ -36,6 +35,7 @@ class _ReportLocationScreenState extends State<ReportLocationScreen> {
     super.initState();
     _location = widget.draft.location;
   }
+  
 
   Future<void> _capture() async {
     setState(() {
@@ -82,9 +82,35 @@ class _ReportLocationScreenState extends State<ReportLocationScreen> {
         _errorMessage = result.error;
         _isLoading = false;
       });
-      AppSnackbar.error(context, result.error ?? 'Could not get location');
+
+      if (result.error != null && result.error!.contains('permanently denied')) {
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Location Required'),
+            content: const Text(
+              'You have permanently denied location access. Please enable it in your app settings to submit a report.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  _locationService.openAppSettings();
+                  Navigator.pop(ctx);
+                },
+                child: const Text('Open Settings'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        AppSnackbar.error(context, result.error ?? 'Could not get location');
+      }
     }
-    
   }
 
   void _onMapTap(ReportLocation newLoc) async {
@@ -237,10 +263,6 @@ class _ReportLocationScreenState extends State<ReportLocationScreen> {
     );
   }
 
-  // ============================================================
-  // BOUNDARY STATUS INDICATOR
-  // ============================================================
-
   Widget _buildBoundaryStatus() {
     final check = _boundaryCheck!;
     final isInside = check.isInside;
@@ -292,9 +314,6 @@ class _ReportLocationScreenState extends State<ReportLocationScreen> {
     );
   }
 
-  // ============================================================
-  // MAP AREA
-  // ============================================================
 
   Widget _buildMapArea() {
     // No location yet
@@ -443,9 +462,7 @@ class _ReportLocationScreenState extends State<ReportLocationScreen> {
     );
   }
 
-  // ============================================================
-  // ERROR CARD
-  // ============================================================
+
 
   Widget _errorCard(String message) {
     return Container(

@@ -227,6 +227,7 @@ class ReportService {
     required String reportId,
     required String workerId,
     required String workerName,
+    required String workerPhone,
     required String adminUid,
     String? note,
   }) async {
@@ -236,6 +237,7 @@ class ReportService {
       'status': ReportStatus.assigned.key,
       'assignedTo': workerId,
       'assignedToName': workerName,
+      'assignedToPhone': workerPhone,
       'assignedAt': Timestamp.fromDate(now),
       'updatedAt': Timestamp.fromDate(now),
       'statusHistory': FieldValue.arrayUnion([
