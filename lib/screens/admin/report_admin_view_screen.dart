@@ -168,9 +168,6 @@ class _ReportAdminViewScreenState extends State<ReportAdminViewScreen> {
     );
   }
 
-  // ============================================================
-  // STATUS HEADER (with Update + Assign)
-  // ============================================================
 
   Widget _buildStatusHeader(BuildContext context, ReportModel report) {
     final canAssign = report.status == ReportStatus.submitted ||
@@ -301,9 +298,6 @@ class _ReportAdminViewScreenState extends State<ReportAdminViewScreen> {
     );
   }
 
-  // ============================================================
-  // INFO + LOCATION + REPORTER
-  // ============================================================
 
   Widget _buildInfoSection(ReportModel report) {
     return _card(
@@ -392,10 +386,6 @@ class _ReportAdminViewScreenState extends State<ReportAdminViewScreen> {
       ),
     );
   }
-
-  // ============================================================
-  // REPAIR EVIDENCE (admin can verify/dispute)
-  // ============================================================
 
   Widget _buildRepairEvidence(ReportModel report) {
     Uint8List? repairBytes;
@@ -664,9 +654,6 @@ class _ReportAdminViewScreenState extends State<ReportAdminViewScreen> {
     );
   }
 
-  // ============================================================
-  // VERIFY / DISPUTE (admin actions)
-  // ============================================================
 
   Future<void> _verifyRepair(ReportModel report) async {
     final confirmed = await showDialog<bool>(
@@ -824,9 +811,6 @@ class _ReportAdminViewScreenState extends State<ReportAdminViewScreen> {
     }
   }
 
-  // ============================================================
-  // TIMELINE
-  // ============================================================
 
   Widget _buildTimelineSection(ReportModel report) {
     if (report.statusHistory.isEmpty) return const SizedBox.shrink();
@@ -912,9 +896,6 @@ class _ReportAdminViewScreenState extends State<ReportAdminViewScreen> {
     );
   }
 
-  // ============================================================
-  // ADMIN RESPONSE CARD
-  // ============================================================
 
   Widget _buildAdminResponseCard(ReportModel report) {
     return Container(
@@ -957,9 +938,6 @@ class _ReportAdminViewScreenState extends State<ReportAdminViewScreen> {
     );
   }
 
-  // ============================================================
-  // HELPERS
-  // ============================================================
 
   Widget _card(String title, Widget child) {
     return Container(

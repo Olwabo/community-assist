@@ -88,8 +88,6 @@ class _WorkerJobDetailsScreenState extends State<WorkerJobDetailsScreen> {
   }
 
   Future<void> _openMaps(double lat, double lng) async {
-    // For Web, use the standard Google Maps HTTPS link.
-    // For Mobile, try the native geo: intent first.
     final Uri uri;
     
     if (kIsWeb) {

@@ -9,7 +9,6 @@ class ReportStatusStepper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Define the standard flow (excluding Rejected/Disputed for the main bar)
     final steps = [
       ReportStatus.submitted,
       ReportStatus.assigned,
@@ -18,10 +17,8 @@ class ReportStatusStepper extends StatelessWidget {
       ReportStatus.verified,
     ];
 
-    // Find current index (-1 if disputed/rejected)
     int currentIndex = steps.indexOf(currentStatus);
     
-    // If it's disputed or rejected, we handle it differently
     final isFailed = currentStatus == ReportStatus.rejected || currentStatus == ReportStatus.disputed;
 
     return Container(

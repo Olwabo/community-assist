@@ -139,7 +139,6 @@ class ReportConfirmationScreen extends StatelessWidget {
                 label: 'View My Reports',
                 icon: Icons.list_alt,
                 onPressed: () {
-                  // TODO: navigate to My Reports screen (Phase 8)
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 },
               ),
