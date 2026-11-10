@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/app_strings.dart';
+import '../../models/report_draft.dart';
 import '../../models/report_model.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
+import '../../services/notification_service.dart';
 import '../../services/report_service.dart';
+import '../../widgets/community_horizontal_tile.dart';
+import '../../widgets/community_mini_map.dart';
 import '../../widgets/dashboard_tile.dart';
 import '../../widgets/notification_bell.dart';
 import '../../widgets/report_list_tile.dart';
@@ -14,9 +18,6 @@ import 'notifications_screen.dart';
 import 'profile_screen.dart';
 import 'report/report_category_screen.dart';
 import 'report/report_details_screen.dart';
-import 'community_feed_screen.dart';
-import '../../models/report_draft.dart';
-import '../../services/notification_service.dart';
 
 class MemberDashboard extends StatefulWidget {
   const MemberDashboard({super.key});
@@ -81,7 +82,6 @@ class _MemberDashboardState extends State<MemberDashboard> {
           appBar: AppBar(
             title: const Text(AppStrings.appName),
             actions: [
-              // Real-time Notification Bell
               StreamBuilder<int>(
                 stream: NotificationService().streamUnreadCount(user.uid),
                 builder: (context, snapshot) {
@@ -98,7 +98,6 @@ class _MemberDashboardState extends State<MemberDashboard> {
                   );
                 },
               ),
-              // Profile Icon
               IconButton(
                 icon: const Icon(Icons.person_outline),
                 tooltip: 'Profile',
@@ -110,7 +109,6 @@ class _MemberDashboardState extends State<MemberDashboard> {
                   );
                 },
               ),
-              // Logout (Hidden in a menu to keep the AppBar clean)
               PopupMenuButton<String>(
                 onSelected: (value) {
                   if (value == 'logout') _logout();
@@ -141,8 +139,6 @@ class _MemberDashboardState extends State<MemberDashboard> {
                 children: [
                   _buildGreeting(user),
                   const SizedBox(height: 24),
-                  _buildStats(user.uid),
-                  const SizedBox(height: 28),
                   
                   // Section Header
                   const Text(
@@ -158,44 +154,132 @@ class _MemberDashboardState extends State<MemberDashboard> {
                   _buildPrimaryAction(user.uid),
                   const SizedBox(height: 12),
                   
-                  // Two smaller tiles side-by-side
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DashboardTile(
-                          label: 'My Reports',
-                          subtitle: 'Track your issues',
-                          icon: Icons.fact_check_outlined,
-                          color: AppColors.accent,
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const MyReportsScreen(),
-                              ),
-                            );
-                          },
+                  DashboardTile(
+                    label: 'My Reports',
+                    subtitle: 'Track your issues',
+                    icon: Icons.fact_check_outlined,
+                    color: AppColors.accent,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const MyReportsScreen(),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DashboardTile(
-                          label: 'Community',
-                          subtitle: 'See others issues',
-                          icon: Icons.map_outlined,
-                          color: Colors.teal,
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const CommunityFeedScreen(),
-                              ),
-                            );
-                          },
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Live Community Map',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 8),
+                  
+                  StreamBuilder<List<ReportModel>>(
+                    stream: _reportService.streamAllReports(),
+                    builder: (context, snapshot) {
+                      final reports = snapshot.data ?? [];
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Container(
+                          height: 220,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppColors.divider),
+                          ),
+                          child: const Center(child: CircularProgressIndicator()),
+                        );
+                      }
+                      return CommunityMiniMap(
+                        reports: reports,
+                        parentContext: context, 
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 28),
 
+                  // --- HORIZONTAL COMMUNITY LIST ---
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Recent Community Issues',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  StreamBuilder<List<ReportModel>>(
+                    stream: _reportService.streamAllReports(),
+                    builder: (context, snapshot) {
+                      final reports = snapshot.data ?? [];
+                      final communityReports = reports.where((r) => r.userId != user.uid).take(5).toList();
+
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const SizedBox(
+                          height: 180,
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+
+                      if (communityReports.isEmpty) {
+                        return Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: AppColors.divider),
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'No other community reports yet.',
+                              style: TextStyle(color: AppColors.textSecondary),
+                            ),
+                          ),
+                        );
+                      }
+
+                      return SizedBox(
+                        height: 180,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: communityReports.length,
+                          separatorBuilder: (context, index) => const SizedBox(width: 12),
+                          itemBuilder: (context, index) {
+                            final r = communityReports[index];
+                            return CommunityHorizontalTile(
+                              report: r,
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => ReportDetailsScreen(reportId: r.id),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                  
                   const SizedBox(height: 32),
+                  
                   _buildRecentReports(user.uid),
                 ],
               ),
@@ -211,7 +295,7 @@ class _MemberDashboardState extends State<MemberDashboard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Hello, ${user.firstName}', // Removed the emoji
+          'Hello, ${user.firstName}',
           style: const TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.bold,
@@ -225,73 +309,6 @@ class _MemberDashboardState extends State<MemberDashboard> {
           style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),
       ],
-    );
-  }
-
-  Widget _buildStats(String uid) {
-    return StreamBuilder<List<ReportModel>>(
-      stream: _reportService.streamUserReports(uid),
-      builder: (context, snapshot) {
-        final reports = snapshot.data ?? const <ReportModel>[];
-        final total = reports.length;
-        final active = reports.where((r) => r.isActive).length;
-        final resolved = reports.where((r) => r.isResolved).length;
-
-        return Row(
-          children: [
-            Expanded(
-              child: _statCard('Total', total, AppColors.primary),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _statCard('Active', active, AppColors.warning),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _statCard('Resolved', resolved, AppColors.success),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _statCard(String label, int value, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.15), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Text(
-            '$value',
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -368,7 +385,7 @@ class _MemberDashboardState extends State<MemberDashboard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Recent Activity',
+          'My Recent Activity',
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w700,

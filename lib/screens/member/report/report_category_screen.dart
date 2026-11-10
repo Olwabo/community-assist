@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../../constants/app_categories.dart';
 import '../../../constants/app_colors.dart';
 import '../../../models/report_draft.dart';

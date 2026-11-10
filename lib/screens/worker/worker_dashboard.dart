@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+
+import '../../constants/app_categories.dart';
 import '../../constants/app_colors.dart';
-import '../../constants/app_categories.dart'; // Needed for category icons
 import '../../constants/app_statuses.dart';
 import '../../models/report_model.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
+import '../../services/notification_service.dart';
 import '../../services/report_service.dart';
+import '../../widgets/notification_bell.dart';
 import '../auth/login_screen.dart';
+import '../member/notifications_screen.dart';
 import '../member/profile_screen.dart';
 import 'worker_report_list_screen.dart';
 
@@ -73,6 +77,23 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
           appBar: AppBar(
             title: const Text('Worker Portal'),
             actions: [
+              // Real-time Notification Bell
+              StreamBuilder<int>(
+                stream: NotificationService().streamUnreadCount(user.uid),
+                builder: (context, snapshot) {
+                  final unread = snapshot.data ?? 0;
+                  return NotificationBell(
+                    unreadCount: unread,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationsScreen(),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
               IconButton(
                 icon: const Icon(Icons.person_outline),
                 tooltip: 'Profile',

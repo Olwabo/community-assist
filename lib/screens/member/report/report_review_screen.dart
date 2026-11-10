@@ -6,7 +6,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../constants/app_categories.dart';
 import '../../../constants/app_colors.dart';
 import '../../../models/report_draft.dart';
+import '../../../models/notification_model.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/notification_service.dart';
 import '../../../services/report_service.dart';
 import '../../../services/storage_service.dart';
 import '../../../utils/snackbar.dart';
@@ -28,6 +30,7 @@ class _ReportReviewScreenState extends State<ReportReviewScreen> {
   final _auth = AuthService();
   final _reportService = ReportService();
   final _storageService = StorageService();
+  final _notificationService = NotificationService(); // Moved up here
 
   bool _isSubmitting = false;
   Uint8List? _photoBytes;
@@ -57,7 +60,7 @@ class _ReportReviewScreenState extends State<ReportReviewScreen> {
       return;
     }
 
-    // 1. Check for duplicates
+    // Check for duplicates
     setState(() {
       _isSubmitting = true;
       _isCheckingDuplicate = true;
@@ -108,7 +111,7 @@ class _ReportReviewScreenState extends State<ReportReviewScreen> {
       if (proceed != true) return;
     }
 
-    // 2. Proceed with actual submission
+    // Proceed with actual submission
     setState(() => _isSubmitting = true);
 
     final fbUser = FirebaseAuth.instance.currentUser;
@@ -123,7 +126,7 @@ class _ReportReviewScreenState extends State<ReportReviewScreen> {
       final profile = await _auth.getCurrentUserModel();
       if (profile == null) throw Exception('User profile not found');
 
-            String? photoBase64;
+      String? photoBase64;
       
       // Check if it's a mobile photo (File)
       if (draft.photoLocalPath != null && !kIsWeb) {
@@ -159,12 +162,27 @@ class _ReportReviewScreenState extends State<ReportReviewScreen> {
         photoBase64: photoBase64,
       );
 
+      // Notify Admin of new report
+      final adminUid = await _auth.getAdminUid();
+      if (adminUid != null) {
+        await _notificationService.createNotification(
+          userId: adminUid,
+          title: 'New Report Submitted',
+          body: 'A new ${created.category.label} was reported by ${profile.fullName}.',
+          type: NotificationType.statusChange,
+          reportId: created.id,
+          reportNumber: created.reportNumber,
+          data: {'status': 'submitted'},
+        );
+      }
+
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => ReportConfirmationScreen(report: created),
         ),
       );
+
     } catch (e) {
       if (!mounted) return;
       AppSnackbar.error(context, 'Submission failed: $e');

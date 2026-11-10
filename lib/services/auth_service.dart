@@ -15,7 +15,7 @@ class AuthService {
   // Stream auth state changes (login/logout)
   Stream<User?> authStateChanges() => _auth.authStateChanges();
 
-  // Stream the Firestore profile of the current user
+  // Stream the profile of the current user
   Stream<UserModel?> streamCurrentUser() {
     final uid = currentUid;
     if (uid == null) return Stream.value(null);
@@ -24,6 +24,12 @@ class AuthService {
       return UserModel.fromMap(snap.id, snap.data()!);
     });
   }
+
+    // Fetches the UID of an administrator to send them notifications.
+    Future<String?> getAdminUid() async {
+    const String demoAdminUid = 'yqJVsuDhukf8ozq7RFrtmTMdSuz2'; 
+    return demoAdminUid;
+    }
 
     // Stream all users (for Admin user management).
   Stream<List<UserModel>> streamAllMembers() {
@@ -63,8 +69,7 @@ class AuthService {
     return UserModel.fromMap(doc.id, doc.data()!);
   }
 
-  /// Register a new community member.
-  /// Returns the created UserModel.
+  // Register a new community member.
   Future<UserModel> register({
     required String firstName,
     required String lastName,
@@ -276,8 +281,6 @@ class AuthService {
       // Sign out of the secondary instance (does NOT affect primary)
       await secondaryAuth.signOut();
 
-      // Write the worker's Firestore profile using the PRIMARY Firestore
-      //    (the admin is still signed in there, so rules permit it)
       final now = DateTime.now();
       final worker = UserModel(
         uid: workerUid,
@@ -345,7 +348,6 @@ class AuthService {
     });
   }
     // Send a password reset email to any user (worker, member).
-  // The user clicks the emailed link and sets a new password.
   Future<void> sendPasswordResetTo(String email) async {
     await _auth.sendPasswordResetEmail(email: email.trim());
   }

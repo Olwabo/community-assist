@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../../constants/app_categories.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/app_statuses.dart';
-import '../../constants/app_categories.dart';
 import '../../models/report_model.dart';
 import '../../services/auth_service.dart';
 import '../../services/report_service.dart';
@@ -51,17 +51,11 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
               );
             }
 
-              return RefreshIndicator(
-              onRefresh: () async {
-                // A quick 1-second fake delay to show the spinner
-                await Future.delayed(const Duration(seconds: 1));
-              },
-              child: TabBarView(
-                children: [
-                  _buildMap(reports),
-                  _buildList(reports),
-                ],
-              ),
+            return TabBarView(
+              children: [
+                _buildMap(reports),
+                _buildList(reports),
+              ],
             );
           },
         ),
@@ -69,24 +63,22 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
     );
   }
 
-  // MAP VIEW
 
   Widget _buildMap(List<ReportModel> reports) {
-    // KuGompo Metro center
-    final center = const LatLng(-33.0153, 27.9116);
 
     return FlutterMap(
-      options: MapOptions(
-        initialCenter: center,
+      options: const MapOptions(
+        initialCenter: LatLng(-33.0153, 27.9116),
         initialZoom: 12,
       ),
       children: [
+        // Esri World Street Map (No API key needed)
         TileLayer(
-          urlTemplate: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-          subdomains: const ['a', 'b', 'c'],
+          urlTemplate:
+              'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
           userAgentPackageName: 'com.umphakathi.app',
-          maxNativeZoom: 17,
-          maxZoom: 17,
+          maxNativeZoom: 19,
+          maxZoom: 19,
         ),
         MarkerLayer(
           markers: reports.map((r) {
@@ -111,93 +103,102 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
             );
           }).toList(),
         ),
+        const RichAttributionWidget(
+          attributions: [
+            TextSourceAttribution('© OpenStreetMap contributors'),
+          ],
+        ),
       ],
     );
   }
 
-  // LIST VIEW
-
   Widget _buildList(List<ReportModel> reports) {
-    return ListView.separated(
-      padding: const EdgeInsets.all(20),
-      itemCount: reports.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final r = reports[index];
-        return Material(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          child: InkWell(
+    return RefreshIndicator(
+      onRefresh: () async {
+        await Future.delayed(const Duration(seconds: 1));
+      },
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        itemCount: reports.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 10),
+        itemBuilder: (context, index) {
+          final r = reports[index];
+          return Material(
+            color: Colors.white,
             borderRadius: BorderRadius.circular(14),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => ReportDetailsScreen(reportId: r.id),
-                ),
-              );
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: r.status.color.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(r.category.icon, color: r.status.color),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ReportDetailsScreen(reportId: r.id),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          r.category.label,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: r.status.color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(r.category.icon, color: r.status.color),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            r.category.label,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          r.description,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
+                          const SizedBox(height: 4),
+                          Text(
+                            r.description,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: r.status.color.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      r.status.label,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: r.status.color,
+                        ],
                       ),
                     ),
-                  ),
-                ],
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: r.status.color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        r.status.label,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: r.status.color,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

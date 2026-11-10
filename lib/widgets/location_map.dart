@@ -51,13 +51,13 @@ class LocationMap extends StatelessWidget {
                 : null,
           ),
           children: [
-            // CartoDB Voyager — free, no API key, generous limits, no UA blocking
-              TileLayer(
-              urlTemplate: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-              subdomains: const ['a', 'b', 'c'],
+            // Esri World Street Map (No API key needed)
+            TileLayer(
+              urlTemplate:
+                  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
               userAgentPackageName: 'com.umphakathi.app',
-              maxNativeZoom: 17,
-              maxZoom: 17,
+              maxNativeZoom: 19,
+              maxZoom: 19,
             ),
             MarkerLayer(
               markers: [
@@ -74,7 +74,7 @@ class LocationMap extends StatelessWidget {
               RichAttributionWidget(
                 attributions: [
                   TextSourceAttribution(
-                    '© OpenStreetMap contributors © CARTO',
+                    '© OpenStreetMap contributors',
                     onTap: () {},
                   ),
                 ],

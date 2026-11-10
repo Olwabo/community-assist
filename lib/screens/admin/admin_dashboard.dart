@@ -6,10 +6,13 @@ import '../../models/report_model.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
 import '../../services/export_service.dart';
+import '../../services/notification_service.dart';
 import '../../services/report_service.dart';
 import '../../widgets/admin_activity_chart.dart';
+import '../../widgets/notification_bell.dart';
 import '../../widgets/report_list_tile.dart';
 import '../auth/login_screen.dart';
+import '../member/notifications_screen.dart';
 import '../member/profile_screen.dart';
 import 'manage_users_screen.dart';
 import 'manage_workers_screen.dart';
@@ -108,6 +111,23 @@ class _AdminDashboardState extends State<AdminDashboard> {
           appBar: AppBar(
             title: const Text('Admin Dashboard'),
             actions: [
+              // Real-time Notification Bell for Admin
+              StreamBuilder<int>(
+                stream: NotificationService().streamUnreadCount(user.uid),
+                builder: (context, snapshot) {
+                  final unread = snapshot.data ?? 0;
+                  return NotificationBell(
+                    unreadCount: unread,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationsScreen(),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
               IconButton(
                 icon: const Icon(Icons.person_outline),
                 tooltip: 'Profile',

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
+
 import '../../../constants/app_categories.dart';
 import '../../../constants/app_colors.dart';
 import '../../../constants/app_statuses.dart';
@@ -114,7 +115,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
     );
   }
 
-
   Widget _buildPhoto(ReportModel report) {
     Uint8List? bytes;
     if (report.photoBase64 != null && report.photoBase64!.isNotEmpty) {
@@ -161,7 +161,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
     );
   }
 
-
   Widget _buildStatusHeader(ReportModel report) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -180,7 +179,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
           ],
         ),
         
-        // NEW: Show who is working on it
+        // Show who is working on it
         if (report.assignedToName != null &&
             report.status != ReportStatus.verified &&
             report.status != ReportStatus.rejected) ...[
@@ -218,7 +217,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
       ],
     );
   }
-
 
   Widget _buildCategorySection(ReportModel report) {
     return _card(
@@ -278,7 +276,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
       ),
     );
   }
-
 
   Widget _buildRepairEvidenceSection(ReportModel report) {
     Uint8List? repairBytes;
@@ -551,7 +548,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
     );
   }
 
-
   Future<void> _verifyRepair(ReportModel report) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -596,6 +592,20 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
           type: NotificationType.reportResolved,
           reportId: report.id,
           reportNumber: report.reportNumber,
+        );
+      }
+
+      // Notify Admin of verification
+      final adminUid = await _auth.getAdminUid();
+      if (adminUid != null) {
+        await _notificationService.createNotification(
+          userId: adminUid,
+          title: 'Repair Verified',
+          body: '${report.userName} verified the repair for ${report.reportNumber}.',
+          type: NotificationType.reportResolved,
+          reportId: report.id,
+          reportNumber: report.reportNumber,
+          data: {'status': 'verified'},
         );
       }
 
@@ -674,6 +684,20 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
         reason: reasonCtrl.text.trim(),
       );
 
+      // Notify Admin of dispute
+      final adminUid = await _auth.getAdminUid();
+      if (adminUid != null) {
+        await _notificationService.createNotification(
+          userId: adminUid,
+          title: 'Repair Disputed',
+          body: '${report.userName} disputed the repair for ${report.reportNumber}.',
+          type: NotificationType.reportRejected,
+          reportId: report.id,
+          reportNumber: report.reportNumber,
+          data: {'status': 'disputed'},
+        );
+      }
+
       if (!mounted) return;
       AppSnackbar.info(context, 'Report sent back to admin');
     } catch (e) {
@@ -683,7 +707,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
       if (mounted) setState(() => _isProcessing = false);
     }
   }
-
 
   Widget _buildTimelineSection(ReportModel report) {
     if (report.statusHistory.isEmpty) {
@@ -784,7 +807,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
     );
   }
 
-
   Widget _buildAdminResponse(ReportModel report) {
     return Container(
       width: double.infinity,
@@ -831,7 +853,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
       ),
     );
   }
-
 
   Widget _buildMetaSection(ReportModel report) {
     final currentUid = _auth.currentUid;
@@ -898,7 +919,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
       ],
     );
   }
-
 
   Widget _card(String title, Widget child) {
     return Container(

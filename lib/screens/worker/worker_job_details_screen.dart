@@ -1,10 +1,14 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import '../../constants/app_categories.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/app_statuses.dart';
+import '../../models/notification_model.dart';
 import '../../models/report_model.dart';
 import '../../services/auth_service.dart';
 import '../../services/notification_service.dart';
@@ -12,11 +16,8 @@ import '../../services/report_service.dart';
 import '../../utils/snackbar.dart';
 import '../../widgets/location_map.dart';
 import '../../widgets/status_badge.dart';
+import '../../widgets/report_status_stepper.dart';
 import 'submit_repair_screen.dart';
-import '../../models/notification_model.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../../../widgets/report_status_stepper.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 class WorkerJobDetailsScreen extends StatefulWidget {
   final String reportId;
@@ -70,12 +71,26 @@ class _WorkerJobDetailsScreenState extends State<WorkerJobDetailsScreen> {
         workerUid: workerUid,
       );
 
-      // Notify admin + reporter
+      // 1. Notify the Reporter
       await _notifyStatusChange(
         report: report,
         newStatus: ReportStatus.inProgress,
         notifBody: '${report.reportNumber} is now being worked on.',
       );
+
+      // 2. Notify the Admin
+      final adminUid = await _auth.getAdminUid();
+      if (adminUid != null) {
+        await _notificationService.createNotification(
+          userId: adminUid,
+          title: 'Worker Started Job',
+          body: 'Worker has started working on ${report.reportNumber}.',
+          type: NotificationType.statusChange,
+          reportId: report.id,
+          reportNumber: report.reportNumber,
+          data: {'status': 'in_progress'},
+        );
+      }
 
       if (!mounted) return;
       AppSnackbar.success(context, 'Job marked as In Progress');
@@ -97,7 +112,6 @@ class _WorkerJobDetailsScreenState extends State<WorkerJobDetailsScreen> {
     }
 
     try {
-      // Launch the URL
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {
       if (!mounted) return;
@@ -112,7 +126,6 @@ class _WorkerJobDetailsScreenState extends State<WorkerJobDetailsScreen> {
     required ReportStatus newStatus,
     required String notifBody,
   }) async {
-    // Notify the reporter
     await _notificationService.createNotification(
       userId: report.userId,
       title: 'Report ${newStatus.label}',
@@ -269,7 +282,6 @@ class _WorkerJobDetailsScreenState extends State<WorkerJobDetailsScreen> {
           ),
           const SizedBox(height: 12),
           
-          // NEW: Navigate Button
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(

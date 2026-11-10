@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-
 import '../../constants/app_colors.dart';
+import '../../models/notification_model.dart';
 import '../../models/report_model.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
@@ -8,7 +8,6 @@ import '../../services/notification_service.dart';
 import '../../services/report_service.dart';
 import '../../utils/snackbar.dart';
 import '../../constants/app_categories.dart';
-import '../../models/notification_model.dart';
 
 class SelectWorkerScreen extends StatefulWidget {
   final ReportModel report;
@@ -41,17 +40,17 @@ class _SelectWorkerScreenState extends State<SelectWorkerScreen> {
         reportId: widget.report.id,
         workerId: worker.uid,
         workerName: worker.fullName,
-        workerPhone: worker.phone, 
+        workerPhone: worker.phone,
         adminUid: adminUid,
         note: 'Assigned to ${worker.fullName}',
       );
 
-      // Notify the worker
+      // Notify the Worker that a new job is assigned
       await _notificationService.createNotification(
         userId: worker.uid,
         title: 'New Job Assigned',
         body: 'You have been assigned ${widget.report.reportNumber} '
-            '(${widget.report.category.label}).',
+            '(${widget.report.category.label}). Tap to view details.',
         type: NotificationType.statusChange,
         reportId: widget.report.id,
         reportNumber: widget.report.reportNumber,

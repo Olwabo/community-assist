@@ -4,7 +4,6 @@ import 'package:csv/csv.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-
 import '../constants/app_categories.dart';
 import '../constants/app_statuses.dart';
 import '../models/report_model.dart';
@@ -33,7 +32,7 @@ class ExportService {
         r.reportNumber,
         r.createdAt.toIso8601String(),
         r.category.label,
-        r.description.replaceAll('\n', ' '), // Prevent line breaks in Excel
+        r.description.replaceAll('\n', ' '),
         r.userName,
         r.status.label,
         r.assignedToName ?? 'Unassigned',

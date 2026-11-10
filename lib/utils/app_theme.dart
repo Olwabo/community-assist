@@ -10,6 +10,7 @@ class AppTheme {
       brightness: Brightness.light,
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,
+        primary: AppColors.primary,
         brightness: Brightness.light,
       ),
       scaffoldBackgroundColor: AppColors.background,
@@ -17,6 +18,8 @@ class AppTheme {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
+        centerTitle: false,
+        iconTheme: IconThemeData(color: Colors.white),
       ),
       cardColor: Colors.white,
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -36,14 +39,17 @@ class AppTheme {
       brightness: Brightness.dark,
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,
+        primary: AppColors.primary,
         brightness: Brightness.dark,
-        surface: const Color(0xFF1E1E1E), // Dark grey for cards
+        surface: const Color(0xFF1E1E1E),
       ),
-      scaffoldBackgroundColor: const Color(0xFF121212), // Almost black background
+      scaffoldBackgroundColor: const Color(0xFF121212),
       appBarTheme: const AppBarTheme(
         backgroundColor: Color(0xFF1E1E1E),
         foregroundColor: Colors.white,
         elevation: 0,
+        centerTitle: false,
+        iconTheme: IconThemeData(color: Colors.white),
       ),
       cardColor: const Color(0xFF1E1E1E),
       elevatedButtonTheme: ElevatedButtonThemeData(
