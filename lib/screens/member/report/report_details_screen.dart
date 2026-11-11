@@ -115,6 +115,12 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
     );
   }
 
+  bool _isOverdue(ReportModel report) {
+    if (report.status != ReportStatus.submitted) return false;
+    final daysOld = DateTime.now().difference(report.createdAt).inDays;
+    return daysOld >= 7;
+  }
+
   Widget _buildPhoto(ReportModel report) {
     Uint8List? bytes;
     if (report.photoBase64 != null && report.photoBase64!.isNotEmpty) {
@@ -162,6 +168,9 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
   }
 
   Widget _buildStatusHeader(ReportModel report) {
+    final currentUid = _auth.currentUid;
+    final isOwner = report.userId == currentUid; // <-- ADDED
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -179,6 +188,42 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
           ],
         ),
         
+        // NEW: Overdue Warning (ONLY for the owner of the report)
+        if (_isOverdue(report) && isOwner) ...[  // <-- ADDED && isOwner
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.warning),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: AppColors.warning),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'This report has been waiting for 7+ days.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.warning,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: _isProcessing ? null : () => _escalateReport(report),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.warning,
+                  ),
+                  child: const Text('Escalate'),
+                ),
+              ],
+            ),
+          ),
+        ],
+
         // Show who is working on it
         if (report.assignedToName != null &&
             report.status != ReportStatus.verified &&
@@ -546,6 +591,45 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _escalateReport(ReportModel report) async {
+    final uid = _auth.currentUid;
+    if (uid == null) return;
+
+    setState(() => _isProcessing = true);
+
+    try {
+      // 1. Update the report status to 'under_review'
+      await _reportService.updateReportStatus(
+        reportId: report.id,
+        newStatus: ReportStatus.underReview,
+        adminUid: uid,
+        note: 'Escalated by reporter due to delay',
+      );
+
+      // 2. Notify Admin
+      final adminUid = await _auth.getAdminUid();
+      if (adminUid != null) {
+        await _notificationService.createNotification(
+          userId: adminUid,
+          title: 'URGENT: Report Escalated!',
+          body: '${report.userName} escalated ${report.reportNumber}. It has been waiting for 7+ days.',
+          type: NotificationType.statusChange,
+          reportId: report.id,
+          reportNumber: report.reportNumber,
+          data: {'status': 'under_review'},
+        );
+      }
+
+      if (!mounted) return;
+      AppSnackbar.success(context, 'Report escalated. Admin will review it soon.');
+    } catch (e) {
+      if (!mounted) return;
+      AppSnackbar.error(context, 'Failed to escalate: $e');
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
   }
 
   Future<void> _verifyRepair(ReportModel report) async {

@@ -6,6 +6,8 @@ import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
 import '../../services/notification_service.dart';
 import '../member/report/report_details_screen.dart';
+import '../admin/report_admin_view_screen.dart';
+import '../worker/worker_job_details_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -84,7 +86,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   itemCount: notifications.length,
                   separatorBuilder: (context, index) =>
                       const Divider(height: 1, color: AppColors.divider),
-                  itemBuilder: (_, i) {
+                              itemBuilder: (_, i) {
                     final n = notifications[i];
                     return _NotificationTile(
                       notification: n,
@@ -93,14 +95,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         if (!n.isRead) {
                           await _notificationService.markAsRead(n.id);
                         }
+                        
                         // Deep link to report
                         if (n.reportId != null && context.mounted) {
+                          Widget destination;
+
+                          // Route based on the role of the user reading the notification
+                          if (user.isAdmin) {
+                            destination = ReportAdminViewScreen(reportId: n.reportId!);
+                          } else if (user.isWorker) {
+                            destination = WorkerJobDetailsScreen(reportId: n.reportId!);
+                          } else {
+                            destination = ReportDetailsScreen(reportId: n.reportId!);
+                          }
+
                           Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => ReportDetailsScreen(
-                                reportId: n.reportId!,
-                              ),
-                            ),
+                            MaterialPageRoute(builder: (_) => destination),
                           );
                         }
                       },

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../constants/app_categories.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_statuses.dart';
 import '../models/report_model.dart';
 import 'status_badge.dart';
 
@@ -14,6 +16,12 @@ class AdminReportListTile extends StatelessWidget {
     required this.report,
     this.onTap,
   });
+
+  bool _isOverdue(ReportModel report) {
+    if (report.status != ReportStatus.submitted) return false;
+    final daysOld = DateTime.now().difference(report.createdAt).inDays;
+    return daysOld >= 7;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -104,10 +112,36 @@ class AdminReportListTile extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 10),
-                          // Row 2: Status + date
+
+              // Row 2: Status + Overdue + Date + Assigned/Action Tag
               Row(
                 children: [
                   StatusBadge(status: report.status, compact: true),
+
+                  // NEW: Overdue Tag
+                  if (_isOverdue(report)) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.error,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'OVERDUE',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
+
                   const SizedBox(width: 8),
                   Text(
                     _formatDate(report.createdAt),
@@ -124,8 +158,7 @@ class AdminReportListTile extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF14B8A6)
-                            .withValues(alpha: 0.15),
+                        color: const Color(0xFF14B8A6).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Row(

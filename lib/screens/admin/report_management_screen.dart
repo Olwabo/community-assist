@@ -30,7 +30,7 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
     _activeFilter = widget.initialFilter;
   }
 
-   @override
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -42,12 +42,12 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
       appBar: AppBar(
         title: const Text('Manage Reports'),
       ),
-           body: SafeArea(
+      body: SafeArea(
         child: Column(
           children: [
             _buildFilterBar(),
             
-            // NEW: Search Bar
+            // Search Bar
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
               child: TextField(
@@ -104,9 +104,9 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
           children: [
             _filterChip('All', null),
             const SizedBox(width: 8),
-            // Show only these specific statuses in the filter bar
+            // Show all statuses except 'verified'
             ...ReportStatus.values.where((s) => 
-              s != ReportStatus.underReview && s != ReportStatus.verified
+              s != ReportStatus.verified 
             ).map((status) {
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
@@ -189,14 +189,14 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
           );
         }
 
-             final reports = snapshot.data ?? const <ReportModel>[];
+        final reports = snapshot.data ?? const <ReportModel>[];
 
-        // 1. First, filter by Status (Repaired merges with Verified)
+        // First, filter by Status (Repaired merges with Verified)
         List<ReportModel> statusFiltered = _activeFilter == ReportStatus.repaired
             ? reports.where((r) => r.status == ReportStatus.repaired || r.status == ReportStatus.verified).toList()
             : reports;
 
-        // 2. Then, filter by Search Query
+        // Then, filter by Search Query
         if (_searchQuery.isNotEmpty) {
           statusFiltered = statusFiltered.where((r) {
             final matchesId = r.reportNumber.toLowerCase().contains(_searchQuery);
