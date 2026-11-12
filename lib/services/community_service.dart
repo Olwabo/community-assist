@@ -6,7 +6,6 @@ import '../models/report_model.dart';
 class CommunityService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // Stream the current community config.
   Stream<CommunityConfig?> streamConfig() {
     return _db.collection('config').doc('community').snapshots().map((snap) {
       if (!snap.exists || snap.data() == null) return null;
@@ -14,7 +13,6 @@ class CommunityService {
     });
   }
 
-  // Get the community config once.
   Future<CommunityConfig?> getConfig() async {
     try {
       final doc = await _db.collection('config').doc('community').get()
@@ -22,12 +20,11 @@ class CommunityService {
       if (!doc.exists || doc.data() == null) return null;
       return CommunityConfig.fromMap(doc.data()!);
     } catch (e) {
-      // If Firestore fails (e.g. no internet), return null
+
       return null; 
     }
   }
 
-  // Check if a location is inside the community boundary.
   LocationCheckResult? checkLocation({
     required CommunityConfig community,
     required ReportLocation location,
